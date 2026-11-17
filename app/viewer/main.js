@@ -1,10 +1,10 @@
 // Starts a packed course: reads key.json, asks for the password when the
 // course has one, opens the course file, and mounts the viewer.
 import DOMPurify from '../../vendor/purify.es.mjs';
-import { unlock, openJson } from '../lib/crypto.js';
+import { unlock, unlockTyped, openJson } from '../lib/crypto.js';
 import { mountViewer, applyStoredTheme } from './render.js';
 import { createRemoteSource } from './remote-source.js';
-import { remember, recall, forget } from './keystore.js';
+import { remember, rememberSafely, recall, forget } from './keystore.js';
 import { showPasswordScreen, showMessage } from './password.js';
 import { copy } from './copy.js';
 import { h } from './dom.js';
@@ -44,7 +44,7 @@ if ('serviceWorker' in navigator) {
 function filesForWorker(course) {
   const files = {};
   for (const [id, f] of Object.entries(course.files)) {
-    files[id] = { name: f.name, mime: f.mime, size: f.size, pieces: f.pieces, same: f.same || null };
+    files[id] = { name: f.name, mime: f.mime, size: f.size, pieces: f.pieces, same: f.same || null, opensAt: f.opensAt || null };
   }
   return files;
 }
@@ -53,7 +53,7 @@ async function openCourse(keyJson, key, swReady, { rememberIt, remembered }) {
   const response = await fetch(keyJson.course, { cache: 'no-cache' });
   if (!response.ok) throw new Error(`Course file missing (${response.status})`);
   const course = await openJson(key, new Uint8Array(await response.arrayBuffer()));
-  if (rememberIt) await remember(base, key);
+  if (rememberIt) await rememberSafely(remember, base, key);
   const sw = await swReady;
   if (sw) {
     swContext = { type: 'course', base, key, files: filesForWorker(course), bundles: course.bundles };
@@ -100,7 +100,7 @@ async function start() {
   showPasswordScreen(app, {
     title: keyJson.title,
     onSubmit: async (password, rememberIt) => {
-      const key = await unlock(keyJson, password);
+      const key = await unlockTyped(keyJson, password);
       await openCourse(keyJson, key, swReady, { rememberIt });
     },
   });

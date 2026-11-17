@@ -77,14 +77,14 @@ test('only course files reach the writer, never a tracker', async () => {
   for (const name of out.files.keys()) assert.match(name, NAME_RULE);
 });
 
-test('the zip writer puts everything under the course folder, stored without compression', async () => {
+test('the zip writer stores the course files at the top of the zip', async () => {
   const { zip, built } = await prepare(await sampleBlob());
-  const out = zipWriter(zipLib, 'ocean-101');
+  const out = zipWriter(zipLib);
   await packCourse({ zip, built, password: null, out });
   const blob = await out.close();
   const back = await openZip(zipLib, blob);
   assert.ok(back.names.length > 3);
-  for (const name of back.names) assert.match(name, /^ocean-101\//);
+  for (const name of back.names) assert.match(name, NAME_RULE);
 });
 
 // A stand-in for the browser's folder handles, for testing directoryWriter.

@@ -11,7 +11,7 @@ export function showPasswordScreen(root, { title, onSubmit }) {
     autocapitalize: 'off', autocorrect: 'off', spellcheck: 'false', 'aria-describedby': 'password-error',
   });
   const error = h('p', { id: 'password-error', class: 'error', hidden: true });
-  const toggle = h('button', { class: 'btn', type: 'button', 'aria-pressed': 'false', 'aria-label': t.showLabel, text: t.show });
+  const toggle = h('button', { class: 'btn', type: 'button', 'aria-pressed': 'false', text: t.show });
   toggle.addEventListener('click', () => {
     const showing = input.type === 'text';
     input.type = showing ? 'password' : 'text';

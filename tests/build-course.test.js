@@ -56,7 +56,7 @@ test('course data holds the course, instructor, and module items', async () => {
   assert.equal(items[2].ref, 'f1');
   assert.equal(items[2].indent, 1);
   assert.equal(items[6].url, 'https://tidesandcurrents.noaa.gov/');
-  assert.deepEqual(course.items[items[7].ref], { type: 'tool', title: 'Publisher tool', url: 'https://tool.example.com/launch' });
+  assert.deepEqual(course.items[items[7].ref], { type: 'tool', title: 'Publisher tool', url: 'https://tool.example.com/launch', opensAt: null });
   assert.equal(course.modules[1].unlockAt, '2030-01-07T08:00:00');
 });
 

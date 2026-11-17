@@ -229,6 +229,7 @@ table.data th { color: var(--muted); font-weight: 700; font-size: 0.9rem; }
 .outline li a[aria-current="page"] { background: var(--accent-soft); border-left-color: var(--accent); color: var(--accent); font-weight: 700; }
 .outline li .icon { color: var(--muted); margin-top: 1px; width: 1.1em; height: 1.1em; }
 .outline .outline-header { padding: 8px 10px 2px; color: var(--muted); font-size: 0.85rem; font-weight: 700; }
+.outline .outline-meta { display: block; font-size: 0.8rem; }
 .outline .locked-row { display: flex; gap: 8px; align-items: flex-start; padding: 6px 10px; font-size: 0.925rem; color: var(--muted); line-height: 1.4; }
 .module-empty { padding: 14px 22px; margin: 0; }
 

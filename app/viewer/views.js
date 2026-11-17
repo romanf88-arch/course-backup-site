@@ -3,6 +3,7 @@ import { h } from './dom.js';
 import { icon } from './icons.js';
 import { copy } from './copy.js';
 import { formatDate, isOpen, parseDate } from '../lib/dates.js';
+import { safeUrl } from '../lib/links.js';
 import { inlineType } from '../lib/mime.js';
 import { cleanHtml, resolveLinks } from './sanitize.js';
 import { neighbors, placement } from './order.js';
@@ -13,7 +14,7 @@ export const routeFor = (type, ref) => (type === 'file' ? `#/file/${ref}` : `#/i
 function prose(ctx, html) {
   const div = h('div', { class: 'prose' });
   const fragment = cleanHtml(html, ctx.DOMPurify);
-  resolveLinks(fragment, { course: ctx.course, files: ctx.files });
+  resolveLinks(fragment, { course: ctx.course, files: ctx.files, now: ctx.now });
   div.appendChild(fragment);
   return div;
 }
@@ -35,12 +36,11 @@ function backLink() {
   return h('a', { class: 'back-link', href: '#/modules' }, icon('left'), ` ${copy.backToModules}`);
 }
 
-// The later of the module's and the item's own unlock date, if either is still ahead.
-function lockedUntil(ctx, ref, own) {
-  const p = placement(ctx.course, ref);
-  const dates = [own, p ? p.moduleUnlockAt : null].filter((d) => d && !isOpen(d, ctx.now));
-  if (!dates.length) return null;
-  return dates.sort((a, b) => parseDate(b) - parseDate(a))[0];
+// The date an item or file opens, if it is still ahead. The packing step
+// works out opensAt from the item's own date and its modules' dates.
+function lockedUntil(ctx, data) {
+  const date = data && data.opensAt;
+  return date && !isOpen(date, ctx.now) ? date : null;
 }
 
 function gradedInfo(item) {
@@ -101,7 +101,7 @@ function crumb(ctx, ref) {
 export function itemView(ctx, id) {
   const item = ctx.course.items[id];
   if (!item) return notFoundView();
-  const locked = lockedUntil(ctx, id, item.unlockAt);
+  const locked = lockedUntil(ctx, item);
   const parts = [backLink(), crumb(ctx, id), pageTitle(item.title)];
   if (locked) {
     parts.push(notice(copy.lockedItem(formatDate(locked, ctx.now))));
@@ -138,8 +138,8 @@ export function itemView(ctx, id) {
     parts.push(notice(copy.quizNote, 'warn'), prose(ctx, item.html));
   } else if (item.type === 'tool') {
     parts.push(notice(copy.toolNote, 'warn'));
-    if (item.url) {
-      parts.push(h('p', {}, h('a', { class: 'btn', href: item.url, target: '_blank', rel: 'noopener noreferrer' },
+    if (safeUrl(item.url)) {
+      parts.push(h('p', {}, h('a', { class: 'btn', href: safeUrl(item.url), target: '_blank', rel: 'noopener noreferrer' },
         icon('external'), copy.toolTry, h('span', { class: 'visually-hidden', text: ` ${copy.newTab}` }))));
     }
   }
@@ -151,7 +151,7 @@ export function itemView(ctx, id) {
 export function fileView(ctx, id) {
   const file = ctx.course.files[id];
   if (!file) return notFoundView();
-  const locked = lockedUntil(ctx, id, file.unlockAt);
+  const locked = lockedUntil(ctx, file);
   const parts = [backLink(), crumb(ctx, id), pageTitle(file.name),
     h('div', { class: 'meta' }, h('span', { class: 'chip', text: copy.fileKind(file.mime) }), h('span', { class: 'chip', text: copy.size(file.size) }))];
   if (locked) {
@@ -217,23 +217,31 @@ function moduleItemRow(ctx, m, it, mode) {
     return h('li', { class: mode === 'outline' ? 'outline-header' : `mi-header${indent}`, text: it.title });
   }
   const data = it.type === 'file' ? ctx.course.files[it.ref] : it.type === 'link' ? null : ctx.course.items[it.ref];
-  const locked = it.ref ? lockedUntil(ctx, it.ref, data ? data.unlockAt : null) : (m.unlockAt && !isOpen(m.unlockAt, ctx.now) ? m.unlockAt : null);
+  // Canvas locks every item in a module that has not opened, even items that open elsewhere.
+  const moduleLocked = m.unlockAt && !isOpen(m.unlockAt, ctx.now) ? m.unlockAt : null;
+  const locked = moduleLocked || lockedUntil(ctx, data);
+  const url = it.type === 'link' ? safeUrl(it.url) : null;
   const iconName = locked ? 'clock' : it.type;
   let meta = it.type === 'link' ? `${copy.types.link} · ${copy.newTab.replace(/[()]/g, '')}` : data && data.type ? metaText(data) : copy.types[it.type];
   if (it.type === 'file' && data) meta = `${copy.types.file} · ${copy.fileKind(data.mime)}, ${copy.size(data.size)}`;
   if (locked) meta = copy.opens(formatDate(locked, ctx.now));
+  const typeWord = h('span', { class: 'visually-hidden', text: `, ${copy.types[it.type] || ''}` });
 
   if (mode === 'outline') {
-    if (locked) return h('li', {}, h('span', { class: 'locked-row' }, icon('clock'), h('span', { text: it.title })));
-    const href = it.type === 'link' ? it.url : routeFor(it.type, it.ref);
+    if (locked || (it.type === 'link' && !url)) {
+      return h('li', {}, h('span', { class: 'locked-row' }, icon(locked ? 'clock' : iconName),
+        h('span', {}, h('span', { text: it.title }), typeWord,
+          locked ? h('span', { class: 'outline-meta', text: copy.opens(formatDate(locked, ctx.now)) }) : null)));
+    }
+    const href = it.type === 'link' ? url : routeFor(it.type, it.ref);
     return h('li', {}, h('a', { href, 'data-ref': it.ref || null, target: it.type === 'link' ? '_blank' : null, rel: it.type === 'link' ? 'noopener noreferrer' : null },
-      icon(iconName), h('span', { text: it.title })));
+      icon(iconName), h('span', { text: it.title }), typeWord));
   }
   const body = h('span', { class: 'mi-body' }, h('span', { class: 'mi-title', text: it.title }), h('span', { class: 'mi-meta', text: meta }));
   const iconBox = h('span', { class: 'mi-icon' }, icon(iconName));
-  if (locked) return h('li', {}, h('div', { class: `mi locked${indent}` }, iconBox, body));
+  if (locked || (it.type === 'link' && !url)) return h('li', {}, h('div', { class: `mi locked${indent}` }, iconBox, body));
   if (it.type === 'link') {
-    return h('li', {}, h('a', { class: `mi${indent}`, href: it.url, target: '_blank', rel: 'noopener noreferrer' }, iconBox, body));
+    return h('li', {}, h('a', { class: `mi${indent}`, href: url, target: '_blank', rel: 'noopener noreferrer' }, iconBox, body));
   }
   return h('li', {}, h('a', { class: `mi${indent}`, href: routeFor(it.type, it.ref) }, iconBox, body));
 }
@@ -346,14 +354,15 @@ export function filesView(ctx) {
     ? folders.map((folder) => [
       h('h2', { class: 'section-title' }, icon('folder'), ` ${folder || copy.mainFolder}`),
       h('ul', { class: 'results' }, groups.get(folder).sort((a, b) => a[1].name.localeCompare(b[1].name)).map(([id, f]) =>
-        h('li', {}, h('a', { href: `#/file/${id}`, text: f.name }), h('p', { text: `${copy.fileKind(f.mime)}, ${copy.size(f.size)}` })))),
+        h('li', {}, lockedUntil(ctx, f) ? h('span', { class: 'muted', text: f.name }) : h('a', { href: `#/file/${id}`, text: f.name }),
+          h('p', { text: lockedUntil(ctx, f) ? copy.opens(formatDate(f.opensAt, ctx.now)) : `${copy.fileKind(f.mime)}, ${copy.size(f.size)}` })))),
     ])
     : h('p', { text: copy.noFiles });
   return { title: copy.filesTitle, node: h('div', { class: 'content' }, card(pageTitle(copy.filesTitle), body)) };
 }
 
 export function searchView(ctx, query) {
-  if (!ctx.index) ctx.index = buildIndex(ctx.course);
+  if (!ctx.index) ctx.index = buildIndex(ctx.course, ctx.now);
   const q = query.trim();
   const results = q ? search(ctx.index, q) : [];
   const parts = [pageTitle(q ? copy.searchTitle(q) : copy.searchButton)];

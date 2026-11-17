@@ -19,6 +19,7 @@ const DB_NAME = 'course-backup';
 const STORE = 'keys';
 const NOT_OPEN_TEXT = 'This file belongs to a protected course. Open the course and type the password, then try this link again.';
 const NOT_OPEN_LINK = 'Open the course';
+const NOT_YET_TEXT = 'This file is not open yet. The course shows the date it opens.';
 
 const courses = new Map();
 
@@ -63,6 +64,14 @@ function inlineType(mime) {
   if (mime === 'image/svg+xml') return false;
   return mime === 'application/pdf' || mime === 'text/plain' ||
     mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/');
+}
+
+// True when a file has an opening date that is still ahead.
+function opensLater(entry, now) {
+  if (!entry || !entry.opensAt) return false;
+  const text = entry.opensAt;
+  const date = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(text) ? text : `${text}Z`);
+  return !Number.isNaN(date.getTime()) && date > now;
 }
 
 function matchFileUrl(pathname) {
@@ -190,10 +199,10 @@ function streamWhole(context, fileId, entry) {
 
 // ---------- Answering requests ----------
 
-function notOpenResponse(base) {
+function notOpenResponse(base, text = NOT_OPEN_TEXT) {
   const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Open the course first</title><style>body{font-family:system-ui,sans-serif;max-width:36rem;margin:15vh auto;padding:0 16px;line-height:1.6}</style></head>
-<body><p>${NOT_OPEN_TEXT}</p><p><a href="${base}">${NOT_OPEN_LINK}</a></p></body></html>`;
+<title>${NOT_OPEN_LINK}</title><style>body{font-family:system-ui,sans-serif;max-width:36rem;margin:15vh auto;padding:0 16px;line-height:1.6}</style></head>
+<body><p>${text}</p><p><a href="${base}">${NOT_OPEN_LINK}</a></p></body></html>`;
   return new Response(html, { status: 403, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
@@ -202,6 +211,7 @@ async function serveFile(request, base, fileId, url) {
   if (!context) return notOpenResponse(base);
   const entry = context.files[fileId];
   if (!entry) return new Response('Not found', { status: 404 });
+  if (opensLater(entry, new Date())) return notOpenResponse(base, NOT_YET_TEXT);
   const labelId = entry.same || fileId;
   const inline = inlineType(entry.mime) && !url.searchParams.has('download');
   const headers = new Headers({
@@ -249,4 +259,4 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(serveFile(event.request, url.origin + match.folder, match.fileId, url));
 });
 
-self.cbsInternals = { parseRange, piecePlan, inlineType, matchFileUrl };
+self.cbsInternals = { parseRange, piecePlan, inlineType, matchFileUrl, opensLater };

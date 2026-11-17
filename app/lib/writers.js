@@ -47,14 +47,16 @@ export async function directoryWriter(parentHandle, folder, { replace = false } 
   };
 }
 
-// Builds a .zip holding the course folder (Firefox and Safari). Encrypted
-// data does not compress, so entries are stored as they are.
-export function zipWriter(zipLib, folder) {
+// Builds a .zip of the course files (Firefox and Safari). The files sit at the
+// top of the zip, because Windows and macOS unzip <folder>.zip into a folder
+// named <folder>; a folder inside the zip would end up nested one level too
+// deep. Encrypted data does not compress, so entries are stored as they are.
+export function zipWriter(zipLib) {
   const writer = new zipLib.ZipWriter(new zipLib.BlobWriter('application/zip'));
   return {
     async write(name, data) {
       const blob = data instanceof Blob ? data : new Blob([data]);
-      await writer.add(`${folder}/${name}`, new zipLib.BlobReader(blob), { level: 0 });
+      await writer.add(name, new zipLib.BlobReader(blob), { level: 0 });
     },
     close: () => writer.close(),
   };

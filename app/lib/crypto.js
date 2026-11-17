@@ -122,3 +122,17 @@ export async function openJson(key, bytes) {
   const plain = await pipeThrough(gz, new DecompressionStream('gzip'));
   return JSON.parse(new TextDecoder().decode(plain));
 }
+
+// What the password screen calls. Some phone keyboards capitalize the first
+// letter even when told not to, so a wrong password that starts with a
+// capital is tried once more with that letter in lowercase.
+export async function unlockTyped(keyJson, password) {
+  try {
+    return await unlock(keyJson, password);
+  } catch (error) {
+    const typed = password == null ? '' : normalizePassword(password);
+    const first = typed.charAt(0);
+    if (!(error instanceof WrongPasswordError) || first === first.toLowerCase()) throw error;
+    return unlock(keyJson, first.toLowerCase() + typed.slice(1));
+  }
+}

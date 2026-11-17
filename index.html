@@ -2,15 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; media-src 'self' https: blob:; frame-src https:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>Course backup</title>
 <link rel="stylesheet" href="app/styles.css">
-<script type="module">
-  import { applyStoredTheme, themeButton } from './app/viewer/render.js';
-  applyStoredTheme();
-  document.getElementById('theme-slot').replaceWith(themeButton());
-</script>
+<script type="module" src="app/site.js"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>

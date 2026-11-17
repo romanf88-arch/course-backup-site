@@ -79,3 +79,13 @@ export function rewriteHtml(html, resolve) {
   });
   return { html: out, canvasLinks };
 }
+
+// Link addresses that come straight from the export (module links, tools)
+// skip DOMPurify, so only plain web and email addresses may become links.
+// Browsers ignore spaces and control characters inside a scheme
+// ("java\tscript:"), so those are removed before checking.
+export function safeUrl(url) {
+  if (typeof url !== 'string') return null;
+  const cleaned = [...url].filter((c) => c.charCodeAt(0) > 32).join('');
+  return /^(https?:\/\/[^/]|mailto:[^/])/i.test(cleaned) ? cleaned : null;
+}

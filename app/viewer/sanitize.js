@@ -5,6 +5,12 @@
 import { copy } from './copy.js';
 import { isCanvasLink } from '../lib/links.js';
 import { inlineType } from '../lib/mime.js';
+import { formatDate, isOpen } from '../lib/dates.js';
+
+// The opening date of a file that has not opened yet, or null.
+function notOpenUntil(file, now) {
+  return file && file.opensAt && !isOpen(file.opensAt, now) ? file.opensAt : null;
+}
 
 const URI = /^(?:(?:(?:f|ht)tps?|mailto|tel|cbs-[a-z]+):|[^a-z]|[a-z+.-]+(?:[^a-z+.\-:]|$))/i;
 const MEDIA_SRC = 'img[src], source[src], video[src], audio[src], iframe[src], embed[src], track[src]';
@@ -70,6 +76,8 @@ function resolveAnchor(a, ctx) {
     } else if (kind === 'file') {
       const file = course.files[id];
       if (!file) { swap(copy.missing.file); return; }
+      const opens = notOpenUntil(file, ctx.now);
+      if (opens) { swap(copy.opens(formatDate(opens, ctx.now))); return; }
       const url = files.url(id);
       if (url) {
         a.setAttribute('href', url);
@@ -112,9 +120,10 @@ function resolveMedia(el, ctx) {
   if (m) {
     const [, kind, id] = m;
     const file = kind === 'file' ? course.files[id] : null;
-    if (!file) {
+    const opens = notOpenUntil(file, ctx.now);
+    if (!file || opens) {
       if (tag === 'source' || tag === 'track') el.remove();
-      else el.replaceWith(note(doc, el.getAttribute('alt') || '', copy.missing.file));
+      else el.replaceWith(note(doc, el.getAttribute('alt') || '', opens ? copy.opens(formatDate(opens, ctx.now)) : copy.missing.file));
       return;
     }
     const url = files.url(id);
@@ -132,8 +141,8 @@ function resolveMedia(el, ctx) {
   }
 }
 
-export function resolveLinks(fragment, { course, files, document: doc = globalThis.document }) {
-  const ctx = { course, files, doc };
+export function resolveLinks(fragment, { course, files, now = new Date(), document: doc = globalThis.document }) {
+  const ctx = { course, files, doc, now };
   for (const a of [...fragment.querySelectorAll('a[href]')]) resolveAnchor(a, ctx);
   for (const el of [...fragment.querySelectorAll(MEDIA_SRC)]) resolveMedia(el, ctx);
   for (const video of [...fragment.querySelectorAll('video[poster]')]) {
@@ -146,7 +155,7 @@ export function resolveLinks(fragment, { course, files, document: doc = globalTh
   }
   for (const el of [...fragment.querySelectorAll('[style*="cbs-"]')]) {
     const style = el.getAttribute('style').replace(/url\(\s*(['"]?)cbs-file:([^'")]+)\1\s*\)/g, (u, q, id) => {
-      const url = course.files[id] && files.url(id);
+      const url = course.files[id] && !notOpenUntil(course.files[id], now) && files.url(id);
       return url ? `url(${q}${url}${q})` : 'none';
     }).replace(/url\(\s*(['"]?)cbs-[a-z]+:[^'")]*\1\s*\)/g, 'none');
     el.setAttribute('style', style);

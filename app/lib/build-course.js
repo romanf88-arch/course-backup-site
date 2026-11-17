@@ -1,6 +1,7 @@
 // Turns a RawCourse and a Selection into CourseData (what the viewer reads),
 // the list of files to pack, and the report the packing page shows.
-import { rewriteHtml } from './links.js';
+import { rewriteHtml, safeUrl } from './links.js';
+import { parseDate } from './dates.js';
 import { makeFileResolver } from './paths.js';
 import { mimeFor } from './mime.js';
 import { hasStudentContent } from './select.js';
@@ -133,14 +134,14 @@ export function buildCourse(raw, selection, { packId, instructor, now }) {
       if (type === 'header') {
         out.push(base);
       } else if (type === 'link') {
-        const url = it.url || (raw.links[it.ref] && raw.links[it.ref].url);
+        const url = safeUrl(it.url || (raw.links[it.ref] && raw.links[it.ref].url));
         if (!url) continue;
         out.push({ ...base, url });
         linkCount++;
       } else if (type === 'tool') {
         const tool = raw.tools[it.ref];
-        const url = it.url || (tool ? tool.url : null);
-        items[it.id] = { type: 'tool', title: it.title, url };
+        const url = safeUrl(it.url || (tool ? tool.url : null));
+        items[it.id] = { type: 'tool', title: it.title, url, opensAt: m.unlockAt || null };
         out.push({ ...base, ref: it.id });
         toolCount++;
         toolTitles.add(it.title);
@@ -154,6 +155,28 @@ export function buildCourse(raw, selection, { packId, instructor, now }) {
     }
     modules.push({ id: m.id, title: m.title, unlockAt: m.unlockAt, items: out });
   }
+
+  // When each item and file opens: the later of its own unlock date and its
+  // modules' date. Content in at least one module without a date, or in no
+  // module, opens with its own date only.
+  const later = (a, b) => (!a ? b : !b ? a : (parseDate(a) >= parseDate(b) ? a : b));
+  const earlier = (a, b) => (!a ? b : !b ? a : (parseDate(a) <= parseDate(b) ? a : b));
+  const placementOpens = new Map();
+  for (const m of raw.modules) {
+    if (!include.modules.has(m.id)) continue;
+    for (const it of m.items) {
+      if (!it.ref || !it.published) continue;
+      const ref = canon(it.ref);
+      const seen = placementOpens.get(ref);
+      if (seen === null) continue;
+      placementOpens.set(ref, m.unlockAt ? earlier(seen, m.unlockAt) : null);
+    }
+  }
+  const opensAt = (ref, own) => later(own || null, placementOpens.has(ref) ? placementOpens.get(ref) : null) || null;
+  for (const [id, item] of Object.entries(items)) {
+    if (item.type !== 'tool') item.opensAt = opensAt(id, item.unlockAt);
+  }
+  for (const [id, entry] of Object.entries(files)) entry.opensAt = opensAt(id, entry.unlockAt);
 
   // Syllabus, home, navigation.
   const syllabus = hasContent(raw.syllabusHtml)

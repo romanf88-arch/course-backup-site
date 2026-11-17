@@ -1,4 +1,5 @@
 // Search across the course text, done in the browser after the course opens.
+import { isOpen } from '../lib/dates.js';
 
 const fold = (text) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
@@ -8,14 +9,17 @@ function plainText(html) {
   return (doc.body ? doc.body.textContent : '').replace(/\s+/g, ' ').trim();
 }
 
-export function buildIndex(course) {
+// Content that has not opened yet stays out of the index, so search cannot show it early.
+export function buildIndex(course, now = new Date()) {
   const entries = [];
+  const notOpen = (x) => x.opensAt && !isOpen(x.opensAt, now);
   for (const [id, item] of Object.entries(course.items)) {
+    if (notOpen(item)) continue;
     const text = plainText(item.html);
     entries.push({ id, kind: 'item', type: item.type, title: item.title, text, foldedTitle: fold(item.title), foldedText: fold(text) });
   }
   for (const [id, file] of Object.entries(course.files)) {
-    if (file.hidden) continue;
+    if (file.hidden || notOpen(file)) continue;
     entries.push({ id, kind: 'file', type: 'file', title: file.name, text: '', foldedTitle: fold(file.name), foldedText: '' });
   }
   return entries;

@@ -432,7 +432,7 @@ function resultsView({ savedText, trackerName, built }) {
 function renderStep3() {
   const t = copy.save;
   const status = h('p', { role: 'status', class: 'muted' });
-  const bar = h('progress', { max: 100, value: 0, hidden: true });
+  const bar = h('progress', { max: 100, value: 0, hidden: true, 'aria-label': t.progressLabel });
   const error = h('p', { class: 'notice notice-warn', role: 'alert', hidden: true });
   const results = h('div', { class: 'results-area' });
   const saveBtn = h('button', { type: 'button', class: 'btn btn-primary' }, icon('download'), canWriteFolders ? t.folderButton : t.zipButton);
@@ -458,7 +458,7 @@ function renderStep3() {
           out = await directoryWriter(parent, state.folder, { replace: true });
         }
       } else {
-        out = zipWriter(window.zip, state.folder);
+        out = zipWriter(window.zip);
       }
       saveBtn.disabled = true;
       backBtn.disabled = true;
@@ -476,7 +476,7 @@ function renderStep3() {
       if (!canWriteFolders) {
         const blob = await out.close();
         download(blob, `${state.folder}.zip`);
-        savedText = t.savedZip(`${state.folder}.zip`);
+        savedText = t.savedZip(`${state.folder}.zip`, state.folder);
       }
       const trackerName = await saveTracker();
       status.textContent = '';

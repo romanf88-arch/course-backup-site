@@ -93,11 +93,15 @@ export function selectContent(raw, { now, exclude }) {
   for (const [id, p] of placements) if (p.good && raw.files[id]) linked.add(id);
   const quizRefs = new Set(raw.quizFileRefs);
   const futureFiles = [];
+  // Identical copies are packed once, so leaving one out leaves out all of them.
+  const sameBytes = (f) => `${f.size}:${f.crc32}`;
+  const excludedBytes = new Set([...exclude].filter((id) => raw.files[id]).map((id) => sameBytes(raw.files[id])));
   for (const f of Object.values(raw.files)) {
     if (exclude.has(f.id)) {
       leftOut.chosen.push({ kind: 'file', id: f.id, title: f.name, size: f.size });
       continue;
     }
+    if (excludedBytes.has(sameBytes(f))) continue;
     if (f.locked) { leftOut.locked++; continue; }
     if (f.path.startsWith('web_resources/assessment_questions/')) { leftOut.quizFiles++; continue; }
     if (!placedOk(f.id)) {

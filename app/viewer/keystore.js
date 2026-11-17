@@ -42,3 +42,13 @@ export async function forget(base) {
     // Nothing was stored.
   }
 }
+
+// Private windows and blocked storage refuse to save; the course still opens.
+export async function rememberSafely(store, base, key) {
+  try {
+    await store(base, key);
+    return true;
+  } catch {
+    return false;
+  }
+}
