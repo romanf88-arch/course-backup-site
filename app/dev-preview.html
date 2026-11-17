@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Viewer preview (development)</title>
+<link rel="stylesheet" href="styles.css">
+<script src="../vendor/zip.min.js"></script>
+<script type="module" src="dev-preview.js"></script>
+</head>
+<body>
+<div id="app" class="app-loading">
+  <div class="load-message card">
+    <h1>Viewer preview</h1>
+    <p>For development only. Add <code>?export=</code> and the address of a .imscc file on this server, or pick a file.</p>
+    <div class="field"><label for="pick">Course export</label><input id="pick" type="file" accept=".imscc,.zip"></div>
+    <p id="status" role="status"></p>
+  </div>
+</div>
+</body>
+</html>
