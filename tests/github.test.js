@@ -1,19 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { githubRepoFromLocation, uploadUrl, folderUrl, courseUrl, siteRoot } from '../pack/github.js';
+import { githubRepoFromLocation, uploadUrl, folderUrl, courseUrl, siteRoot } from '../publish/github.js';
 
 test('finds the repository from a project site address', () => {
-  assert.deepEqual(githubRepoFromLocation('https://alice.github.io/course-backup-site/pack/'), { owner: 'alice', repo: 'course-backup-site' });
-  assert.deepEqual(githubRepoFromLocation('https://Alice.github.io/course-backup-site/pack/index.html?x=1'), { owner: 'alice', repo: 'course-backup-site' });
+  assert.deepEqual(githubRepoFromLocation('https://alice.github.io/course-backup-site/publish/'), { owner: 'alice', repo: 'course-backup-site' });
+  assert.deepEqual(githubRepoFromLocation('https://Alice.github.io/course-backup-site/publish/index.html?x=1'), { owner: 'alice', repo: 'course-backup-site' });
 });
 
 test('finds the repository from a user site address', () => {
-  assert.deepEqual(githubRepoFromLocation('https://alice.github.io/pack/'), { owner: 'alice', repo: 'alice.github.io' });
+  assert.deepEqual(githubRepoFromLocation('https://alice.github.io/publish/'), { owner: 'alice', repo: 'alice.github.io' });
 });
 
 test('other hosts give no repository', () => {
-  assert.equal(githubRepoFromLocation('http://localhost:8793/pack/'), null);
-  assert.equal(githubRepoFromLocation('https://courses.example.edu/pack/'), null);
+  assert.equal(githubRepoFromLocation('http://localhost:8793/publish/'), null);
+  assert.equal(githubRepoFromLocation('https://courses.example.edu/publish/'), null);
 });
 
 test('GitHub page addresses', () => {
@@ -23,7 +23,7 @@ test('GitHub page addresses', () => {
 });
 
 test('the course link sits beside the packing page', () => {
-  assert.equal(siteRoot('https://alice.github.io/course-backup-site/pack/'), 'https://alice.github.io/course-backup-site/');
-  assert.equal(courseUrl('https://alice.github.io/course-backup-site/pack/index.html', 'ocean-101'), 'https://alice.github.io/course-backup-site/ocean-101/');
-  assert.equal(courseUrl('http://localhost:8793/pack/', 'las'), 'http://localhost:8793/las/');
+  assert.equal(siteRoot('https://alice.github.io/course-backup-site/publish/'), 'https://alice.github.io/course-backup-site/');
+  assert.equal(courseUrl('https://alice.github.io/course-backup-site/publish/index.html', 'ocean-101'), 'https://alice.github.io/course-backup-site/ocean-101/');
+  assert.equal(courseUrl('http://localhost:8793/publish/', 'las'), 'http://localhost:8793/las/');
 });

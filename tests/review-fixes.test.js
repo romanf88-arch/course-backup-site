@@ -58,7 +58,7 @@ test('the viewer never writes an unsafe address into a link', async () => {
 });
 
 test('every page carries a script policy and has no inline scripts', () => {
-  const pages = { 'course index': COURSE_INDEX_HTML, 'index.html': file('index.html'), 'pack/index.html': file('pack/index.html'), 'help/index.html': file('help/index.html') };
+  const pages = { 'course index': COURSE_INDEX_HTML, 'index.html': file('index.html'), 'publish/index.html': file('publish/index.html'), 'pack/index.html': file('pack/index.html'), 'help/index.html': file('help/index.html') };
   for (const [name, html] of Object.entries(pages)) {
     const csp = /<meta http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(html);
     assert.ok(csp, `${name} has a Content-Security-Policy`);

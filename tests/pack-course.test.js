@@ -2,7 +2,7 @@ import './setup.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { packCourse } from '../app/lib/pack-course.js';
-import { memoryWriter, directoryWriter, zipWriter } from '../app/lib/writers.js';
+import { memoryWriter, collectWriter, directoryWriter, zipWriter } from '../app/lib/writers.js';
 import { buildCourse } from '../app/lib/build-course.js';
 import { selectContent } from '../app/lib/select.js';
 import { openZip } from '../app/lib/zip-source.js';
@@ -75,6 +75,15 @@ test('only course files reach the writer, never a tracker', async () => {
   const out = memoryWriter();
   await packCourse({ zip, built, password: null, out });
   for (const name of out.files.keys()) assert.match(name, NAME_RULE);
+});
+
+test('the collecting writer keeps every file for upload without copying it', async () => {
+  const { zip, built } = await prepare(await sampleBlob());
+  const out = collectWriter();
+  await packCourse({ zip, built, password: null, out });
+  for (const name of out.files.keys()) assert.match(name, NAME_RULE);
+  const bundle = [...out.files.entries()].find(([name]) => name.startsWith('data-'));
+  assert.ok(bundle[1] instanceof Blob, 'bundles stay Blobs, so the browser can keep them on disk');
 });
 
 test('the zip writer stores the course files at the top of the zip', async () => {

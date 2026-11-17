@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { suggestFolder, checkFolder, suggestPassword } from '../pack/naming.js';
-import { WORDS } from '../pack/words.js';
+import { suggestFolder, checkFolder, suggestPassword } from '../publish/naming.js';
+import { WORDS } from '../publish/words.js';
 
 test('a course code becomes the folder name', () => {
   assert.equal(suggestFolder('LAS 291/292', 'Global Perspectives'), 'las-291-292');

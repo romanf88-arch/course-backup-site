@@ -420,6 +420,39 @@ ol.steps > li { padding: 4px 0 8px; }
 .help figure img { border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); height: auto; }
 .help figcaption { color: var(--muted); font-size: 0.9rem; margin-top: 6px; }
 
+.btn-large { min-height: 52px; padding: 12px 24px; font-size: 1.0625rem; }
+.btn-danger { color: var(--danger); border-color: var(--danger); }
+.btn-danger:hover { color: var(--danger); }
+.connection { display: flex; align-items: center; gap: 8px; margin: 0; }
+.connection .icon { color: var(--success); }
+#github-panel { margin: 20px 0 0; }
+#github-panel > .error { margin-top: 6px; }
+.not-connected { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.live-card { padding: 22px 26px; }
+.live-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; font-size: 0.95rem; }
+.live-card h2 { font-size: 1.2rem; margin: 0 0 8px; }
+.live-list { list-style: none; padding: 0; margin: 0; }
+.live-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 0; border-top: 1px solid var(--border); }
+.live-info { display: flex; flex-direction: column; min-width: 0; }
+.live-info a { overflow-wrap: anywhere; font-size: 0.95rem; }
+.live-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.preview-card p:last-child { margin-bottom: 0; }
+.facts-list { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0 0 20px; }
+.facts-list dt { color: var(--muted); }
+.facts-list dd { margin: 0; overflow-wrap: anywhere; }
+.connect-card ol.steps li > p { margin: 0 0 8px; }
+.connect-card .field { margin-top: 8px; }
+.connect-card .field input { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font: inherit; }
+.live-done { border-color: var(--success); }
+.live-done h3 { display: flex; align-items: center; gap: 8px; font-size: 1.25rem; }
+.live-done h3 .icon { color: var(--success); }
+.live-done h3:focus { outline: none; }
+.live-link { font-size: 1.125rem; font-weight: 700; overflow-wrap: anywhere; }
+.fallback { margin-top: 28px; }
+.fallback summary { cursor: pointer; font-weight: 700; }
+.fallback[open] summary { margin-bottom: 12px; }
+progress:not([value]) { accent-color: var(--accent); }
+
 .preview-dialog { width: 100vw; height: 100vh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: var(--bg); color: var(--text); }
 .preview-dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
 .preview-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 24px; background: var(--accent); color: var(--on-accent); }

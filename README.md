@@ -1,8 +1,8 @@
 # Course backup site
 
-This site turns a Canvas course export (an .imscc file) into a password-protected, read-only copy of the course on GitHub Pages. Students can keep reading course materials while Canvas is down. It also builds an Excel submission tracker that stays on your own computer.
+This site puts a password-protected, read-only copy of a Canvas course on GitHub Pages, so students can keep reading course materials while Canvas is down. Faculty load their course export (an .imscc file), preview it, and click "Make it live". The page also builds an Excel submission tracker that stays on the faculty member's own computer.
 
-Everything happens in a web browser. You install nothing, and your export never leaves your computer: the packing page encrypts the course before you upload it.
+Everything happens in a web browser, and nothing needs installing. The export never leaves your computer, because the page locks the course with its password before sending it to GitHub.
 
 ## Set up your site (first time only)
 
@@ -10,9 +10,9 @@ Everything happens in a web browser. You install nothing, and your export never 
 2. Click "Use this template" at the top of this page and choose "Create a new repository". Give it a short name, such as `course-backup`, choose "Public", and click "Create repository". Every course you upload is encrypted, so a public repository is safe.
 3. In your new repository, click "Settings", then "Pages". Under "Build and deployment", set "Source" to "Deploy from a branch", choose the "main" branch and the "/ (root)" folder, and click "Save".
 4. Wait about a minute and reload the page. GitHub shows your site's address, which looks like `https://your-name.github.io/course-backup/`.
-5. Open that address and click "Pack a course".
+5. Open that address and click "Publish a course". The first time you make a course live, the page shows how to create a GitHub key so it can add courses to your site.
 
-The help page on your site (`https://your-name.github.io/course-backup/help/`) explains packing and uploading a course, sending the link to students, replacing or removing a course, the submission tracker, and size limits.
+The help page on your site (`https://your-name.github.io/course-backup/help/`) explains publishing a course, connecting to GitHub, sending the link to students, replacing or taking down a course, the submission tracker, and size limits.
 
 ## What students see
 
@@ -25,11 +25,12 @@ The site leaves out quiz questions and answers, anything unpublished, locked fil
 - Each course is encrypted with AES-256-GCM. The password decrypts the course key through PBKDF2-SHA256 with 600,000 rounds.
 - File names, page titles, and page text are encrypted too. Only the course title and the folder name are readable on GitHub.
 - Course HTML is cleaned before it is shown, so nothing in a course can run scripts on the site.
-- The submission tracker is saved only to your computer and never goes into the course folder.
+- The GitHub key is sent only to `api.github.com`, and the page keeps it for the browser session unless the faculty member asks it to remember the key on that computer.
+- The submission tracker is saved only to your computer and never goes to GitHub.
 
 ## For developers
 
-The site is plain JavaScript modules with no build step. The shared library is in `app/lib/`, the course viewer in `app/viewer/`, the packing page in `pack/`, and the service worker that decrypts files is `sw.js`.
+The site is plain JavaScript modules with no build step. The shared library is in `app/lib/`, the course viewer in `app/viewer/`, the publish page in `publish/` (its GitHub API client is `publish/github-api.js`), and the service worker that decrypts files is `sw.js`. `node tools/mock-github.mjs` runs the publish page against a local stand-in for GitHub.
 
 ```bash
 npm install

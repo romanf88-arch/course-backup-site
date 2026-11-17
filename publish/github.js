@@ -1,5 +1,5 @@
 // Addresses on GitHub and on the published site, worked out from the
-// packing page's own address (https://<owner>.github.io/<repo>/pack/).
+// packing page's own address (https://<owner>.github.io/<repo>/publish/).
 
 export function githubRepoFromLocation(href) {
   const url = new URL(href);
@@ -7,7 +7,7 @@ export function githubRepoFromLocation(href) {
   if (!m) return null;
   const owner = m[1].toLowerCase();
   const first = url.pathname.split('/').filter(Boolean)[0];
-  if (!first || first === 'pack') return { owner, repo: `${owner}.github.io` };
+  if (!first || first === 'publish') return { owner, repo: `${owner}.github.io` };
   return { owner, repo: first };
 }
 

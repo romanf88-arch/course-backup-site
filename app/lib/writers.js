@@ -15,6 +15,19 @@ export function memoryWriter() {
   };
 }
 
+// Keeps the files as they are written, for uploading to GitHub. Bundles stay
+// Blobs, which browsers can hold on disk instead of in memory.
+export function collectWriter() {
+  const files = new Map();
+  return {
+    files,
+    async write(name, data) {
+      files.set(name, data);
+    },
+    async close() {},
+  };
+}
+
 // Writes the course folder inside a folder the faculty member picked
 // (Chrome and Edge). If the course folder already holds an earlier pack,
 // the caller must pass replace: true; only files this tool made are removed.
