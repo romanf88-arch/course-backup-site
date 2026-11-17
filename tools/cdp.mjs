@@ -22,6 +22,8 @@ const size = opt('size', '1280x900');
 const dark = Boolean(opt('dark', false));
 const waitFor = opt('wait', '.topbar, .gate, .page-shell');
 const full = Boolean(opt('full', false));
+const before = opt('before', null);
+const downloads = opt('downloads', null);
 const [mode, a, b] = args;
 const [width, height] = size.split('x').map(Number);
 
@@ -69,6 +71,7 @@ try {
   await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: width < 768 });
   await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: dark ? 'dark' : 'light' }] });
+  if (downloads) await send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: downloads });
   const url = mode === 'shot' ? b : a;
   await send('Page.navigate', { url });
   const started = Date.now();
@@ -77,6 +80,7 @@ try {
     await new Promise((r) => setTimeout(r, 250));
   }
   await new Promise((r) => setTimeout(r, 600));
+  if (before) console.error(JSON.stringify(await evaluate(readFileSync(before, 'utf8'))));
   if (mode === 'shot') {
     const params = { format: 'png' };
     if (full) {
@@ -88,6 +92,19 @@ try {
     const shot = await send('Page.captureScreenshot', params);
     writeFileSync(a, Buffer.from(shot.data, 'base64'));
     console.log(a);
+  } else if (mode === 'tab') {
+    // Presses Tab a number of times and reports where focus lands and whether it shows.
+    const presses = Number(b) || 10;
+    for (let i = 0; i < presses; i++) {
+      await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+      await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+      console.log(JSON.stringify(await evaluate(`(() => {
+        const el = document.activeElement;
+        const shown = el.type === 'file' ? el.nextElementSibling : el;
+        const s = getComputedStyle(shown);
+        return { el: (el.innerText || el.getAttribute('aria-label') || el.id || el.tagName).trim().slice(0, 40), outline: s.outlineStyle + ' ' + s.outlineWidth + ' ' + s.outlineColor };
+      })()`)));
+    }
   } else if (mode === 'eval') {
     console.log(JSON.stringify(await evaluate(readFileSync(b, 'utf8')), null, 2));
   }
