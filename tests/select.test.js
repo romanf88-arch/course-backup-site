@@ -109,6 +109,21 @@ test('keeps hidden files only when included content links to them', () => {
   assert.equal(s.leftOut.unlinked, 1);
 });
 
+test('keeps a hidden file linked by a path written with plain spaces', () => {
+  const r = raw({
+    discussions: { d1: { id: 'd1', title: 'Talk', published: true, unlockAt: null, sectionOnly: false,
+      html: '<video><source src="$IMS-CC-FILEBASE$/Uploaded Media/Love is Blind-1.mp4" data-media-type="video"></video>' +
+        '<div style="background: url($IMS-CC-FILEBASE$/Uploaded%20Media/banner%20(2).jpg)"></div>' } },
+    files: {
+      v: file('v', 'web_resources/Uploaded Media/Love is Blind-1.mp4', { hidden: true }),
+      b: file('b', 'web_resources/Uploaded Media/banner (2).jpg', { hidden: true }),
+    },
+  });
+  const s = selectContent(r, opts());
+  assert.equal(s.include.files.has('v'), true);
+  assert.equal(s.include.files.has('b'), true);
+});
+
 test('lists future items and keeps them', () => {
   const r = raw({
     pages: { p1: page('p1'), p2: page('p2') },

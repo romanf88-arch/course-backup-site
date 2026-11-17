@@ -39,10 +39,17 @@ export function makeFileResolver(files) {
 }
 
 // Every path written after $IMS-CC-FILEBASE$/ in a piece of text.
+// Canvas sometimes writes plain spaces in these paths, so a path runs to the
+// closing quote (or escaped quote, or line end), not to the first space.
 export function fileBaseRefs(text) {
   const out = [];
-  for (const m of text.matchAll(/\$IMS-CC-FILEBASE\$\/([^"'\s<>]+)/g)) {
-    out.push(m[1].replace(/&quot;.*$/, ''));
+  for (const m of text.matchAll(/\$IMS-CC-FILEBASE\$\/(.*?)(?=["'<>\n]|&quot;|&#39;|&#x27;|$)/g)) {
+    let ref = m[1].trim();
+    // An unquoted CSS url(...) leaves its closing parenthesis on the path.
+    const opens = (ref.match(/\(/g) || []).length;
+    const closes = (ref.match(/\)/g) || []).length;
+    if (closes > opens && ref.endsWith(')')) ref = ref.slice(0, -1).trim();
+    if (ref) out.push(ref);
   }
   return out;
 }
