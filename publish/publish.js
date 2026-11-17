@@ -18,9 +18,10 @@ import { icon } from '../app/viewer/icons.js';
 import { copy } from './copy.js';
 import { suggestFolder, checkFolder, suggestPassword } from './naming.js';
 import { WORDS } from './words.js';
-import { githubRepoFromLocation, courseUrl } from './github.js';
-import { createClient, tokenUrl } from './github-api.js';
+import { githubRepoFromLocation, pagesSettingsUrl, siteRoot } from './github.js';
+import { createClient, tokenUrl, templateUrl, whoAmI, DEFAULT_REPO } from './github-api.js';
 import { createTokenStore } from './token-store.js';
+import { loadSiteFiles } from './site-files.js';
 
 applyStoredTheme();
 document.getElementById('theme-slot').replaceWith(themeButton());
@@ -30,14 +31,15 @@ const stepperEl = document.getElementById('stepper');
 const panelEl = document.getElementById('github-panel');
 const MB = 1e6;
 
-// Where courses go. On a local test server, ?repo=owner/name and ?api=/path
-// stand in for the real site and GitHub; nowhere else are they read.
+// The repository this page is served from. Its owner publishes into it; anyone
+// else publishes into their own repository, made from it as a template. On a
+// local test server, ?repo=owner/name and ?api=/path stand in for the real
+// site and GitHub; nowhere else are they read.
 const params = new URLSearchParams(location.search);
 const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
 const localRepo = isLocal && /^[\w.-]+\/[\w.-]+$/.test(params.get('repo') || '') ? params.get('repo').split('/') : null;
-const repo = githubRepoFromLocation(location.href) || (localRepo ? { owner: localRepo[0], repo: localRepo[1] } : null);
+const pageRepo = githubRepoFromLocation(location.href) || (localRepo ? { owner: localRepo[0], repo: localRepo[1] } : null);
 const apiBase = isLocal && (params.get('api') || '').startsWith('/') ? new URL(params.get('api'), location.href).href.replace(/\/$/, '') : undefined;
-const repoName = repo ? `${repo.owner}/${repo.repo}` : '';
 const canWriteFolders = typeof window.showDirectoryPicker === 'function' && !params.has('zip');
 
 function storage(name) {
@@ -45,7 +47,9 @@ function storage(name) {
 }
 const tokens = createTokenStore({ session: storage('sessionStorage'), local: storage('localStorage') });
 
-const gh = { client: null, branch: 'main', courses: [], loading: false, message: '', error: '' };
+// target: the connected repository { owner, repo }. pages: { url, ready } from
+// GitHub, or null while GitHub Pages is off.
+const gh = { client: null, target: null, pages: null, branch: 'main', courses: [], loading: false, message: '', error: '' };
 const state = {
   step: 1, zip: null, raw: null, exclude: new Set(), folder: '', replaceFolder: null, replaceTitle: '',
   passwordMode: 'suggested', suggested: suggestPassword(WORDS), own: '', name: '', email: '',
@@ -96,9 +100,25 @@ function selectionFor(exclude) {
   });
 }
 
+const targetName = (target) => (target ? `${target.owner}/${target.repo}` : '');
+const pagesReady = () => Boolean(gh.pages && gh.pages.ready);
+
 function ghMessage(error) {
   const make = copy.github.errors[error.code] || copy.github.errors.failed;
-  return make(repoName);
+  return make(error.repoName || targetName(gh.target));
+}
+
+// The course's address on the connected site. Before the site is known, only
+// the end of the address shows.
+function courseLink(folder) {
+  return `${gh.pages ? gh.pages.url : '…/'}${folder}/`;
+}
+
+// The Preview step shows the course link under the link name; once the site
+// is known, show the full address there.
+function refreshLinkPreview() {
+  const field = document.getElementById('folder');
+  if (field) field.dispatchEvent(new Event('input'));
 }
 
 function confirmDialog(text, yes, no) {
@@ -129,7 +149,7 @@ function renderStepper() {
 function show(step, nodes) {
   state.step = step;
   renderStepper();
-  if (!gh.client) renderPanel();
+  if (!gh.client || !pagesReady()) renderPanel();
   stepEl.replaceChildren(...nodes.filter(Boolean));
   const heading = stepEl.querySelector('h2');
   if (heading) {
@@ -141,13 +161,25 @@ function show(step, nodes) {
 
 // ---------- GitHub connection and live courses ----------
 
-async function connect(token, remember) {
-  const client = createClient({ token, owner: repo.owner, repo: repo.repo, apiBase });
-  const { branch } = await client.check();
-  tokens.save(token, remember);
-  gh.client = client;
-  gh.branch = branch;
-  gh.error = '';
+// Connects to the key owner's repository: the name they typed, else this
+// page's own repository when they own it, else the template's default name.
+async function connect(token, remember, typedRepo = '') {
+  const login = await whoAmI({ token, apiBase });
+  const ownsPage = pageRepo && pageRepo.owner === login.toLowerCase();
+  const target = { owner: login, repo: typedRepo || (ownsPage ? pageRepo.repo : DEFAULT_REPO) };
+  let client;
+  let branch;
+  let pages;
+  try {
+    client = createClient({ token, owner: target.owner, repo: target.repo, apiBase });
+    ({ branch } = await client.check());
+    pages = await client.pagesSite(branch);
+  } catch (error) {
+    error.repoName = targetName(target);
+    throw error;
+  }
+  tokens.save(token, remember, target.repo);
+  Object.assign(gh, { client, target, branch, pages, error: '' });
   refreshCourses();
 }
 
@@ -168,8 +200,7 @@ async function refreshCourses() {
 
 function disconnect() {
   tokens.clear();
-  gh.client = null;
-  gh.courses = [];
+  Object.assign(gh, { client: null, target: null, pages: null, courses: [] });
   renderPanel();
   if (state.step === 3) renderStep3();
 }
@@ -198,47 +229,49 @@ function startReplace(course) {
 
 function renderPanel() {
   const t = copy.github;
-  if (!repo) {
-    panelEl.replaceChildren(notice(t.unknownRepo, 'warn'));
-    return;
-  }
   if (!gh.client) {
     const open = h('button', { type: 'button', class: 'btn btn-small', text: t.connectNow });
     open.addEventListener('click', () => {
       panelEl.replaceChildren(connectCard(() => {
         renderPanel();
         if (state.step === 3) renderStep3();
+        refreshLinkPreview();
       }));
       panelEl.querySelector('h3').setAttribute('tabindex', '-1');
       panelEl.querySelector('h3').focus();
     });
     // Step 3 shows its own connection form, so the button here would duplicate it.
-    const stepHasForm = state.step === 3 && repo;
+    const stepHasForm = state.step === 3;
     panelEl.replaceChildren(...[
       h('div', { class: 'not-connected' }, h('p', { class: 'muted connection', text: t.notConnected }), stepHasForm ? null : open),
       gh.error ? h('p', { role: 'alert', class: 'error', text: gh.error }) : null].filter(Boolean));
     return;
   }
+  // Step 3 shows the Pages steps in place of its button, so the panel only mentions them.
+  const pagesPart = pagesReady() ? null
+    : state.step === 3 ? h('p', { class: 'muted', text: t.pagesBelow }) : pagesCard();
   const list = gh.courses.length
     ? h('ul', { class: 'live-list' }, gh.courses.map((course) => {
-      const link = courseUrl(location.href, course.folder);
-      const copyBtn = h('button', { type: 'button', class: 'btn btn-small' }, icon('copy'), t.copyLink);
-      copyBtn.addEventListener('click', () => copyText(link, copyBtn, t.copied));
+      const link = courseLink(course.folder);
+      const ready = pagesReady();
+      const copyBtn = ready ? h('button', { type: 'button', class: 'btn btn-small' }, icon('copy'), t.copyLink) : null;
+      if (copyBtn) copyBtn.addEventListener('click', () => copyText(link, copyBtn, t.copied));
       return h('li', {},
         h('div', { class: 'live-info' },
           h('strong', { text: course.title }),
-          h('a', { href: link, target: '_blank', rel: 'noopener', text: link })),
-        h('div', { class: 'live-actions' }, copyBtn,
+          ready ? h('a', { href: link, target: '_blank', rel: 'noopener', text: link }) : h('span', { class: 'muted', text: t.linkWaits })),
+        h('div', { class: 'live-actions' }, ...[copyBtn,
           h('button', { type: 'button', class: 'btn btn-small', text: t.replace, onclick: () => startReplace(course) }),
-          h('button', { type: 'button', class: 'btn btn-small btn-danger', text: t.takeDown, onclick: () => takeDown(course) })));
+          h('button', { type: 'button', class: 'btn btn-small btn-danger', text: t.takeDown, onclick: () => takeDown(course) })].filter(Boolean)));
     }))
     : h('p', { class: 'muted', text: gh.loading ? t.loading : t.liveNone });
   panelEl.replaceChildren(h('section', { class: 'card live-card', 'aria-labelledby': 'live-title' },
     h('div', { class: 'live-head' },
-      h('p', { class: 'connection' }, icon('check'), ` ${t.connectedTo(repoName)}`),
+      h('p', { class: 'connection' }, icon('check'), ` ${t.connectedTo(targetName(gh.target))}`),
       h('button', { type: 'button', class: 'btn-link', text: t.disconnect, onclick: disconnect })),
     h('h2', { id: 'live-title', text: t.liveTitle }),
     list,
+    pagesPart,
     gh.message ? h('p', { role: 'status', class: 'muted', text: gh.message }) : null,
     gh.error ? h('p', { role: 'alert', class: 'error', text: gh.error }) : null));
 }
@@ -352,7 +385,7 @@ function folderField() {
   const update = () => {
     state.folder = input.value.trim();
     const problem = checkFolder(state.folder);
-    link.replaceChildren(t.linkPreview, ' ', h('code', { text: courseUrl(location.href, state.folder || '…') }));
+    link.replaceChildren(t.linkPreview, ' ', h('code', { text: courseLink(state.folder || '…') }));
     error.hidden = !problem;
     error.textContent = problem ? t.folderErrors[problem] : '';
     if (problem) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
@@ -510,6 +543,13 @@ function connectCard(onConnected) {
   const t = copy.github;
   const n = ++connectCount;
   const key = h('input', { type: 'password', id: `github-key-${n}`, class: 'github-key', autocomplete: 'off', spellcheck: 'false', 'aria-describedby': `key-error-${n}` });
+  const repoInput = h('input', { type: 'text', id: `repo-name-${n}`, autocomplete: 'off', spellcheck: 'false', 'aria-describedby': `repo-hint-${n}` });
+  const other = h('details', { class: 'other-name' },
+    h('summary', { text: t.otherName }),
+    h('div', { class: 'field' },
+      h('label', { for: `repo-name-${n}`, text: t.otherNameLabel }),
+      h('p', { id: `repo-hint-${n}`, class: 'hint', text: t.otherNameHint }),
+      repoInput));
   const rememberBox = h('input', { type: 'checkbox', id: `remember-key-${n}` });
   const error = h('p', { id: `key-error-${n}`, class: 'error', role: 'alert', hidden: true });
   const status = h('p', { class: 'muted', role: 'status' });
@@ -517,40 +557,86 @@ function connectCard(onConnected) {
   button.addEventListener('click', async () => {
     const value = key.value.trim();
     if (!value) { key.focus(); return; }
+    // People paste the whole address; keep only the repository name.
+    const typed = repoInput.value.trim().replace(/\/+$/, '').split('/').pop();
     button.disabled = true;
     error.hidden = true;
     status.textContent = t.checking;
     try {
-      await connect(value, rememberBox.checked);
+      await connect(value, rememberBox.checked, typed);
       onConnected();
     } catch (e) {
       error.textContent = ghMessage(e);
       error.hidden = false;
-      key.setAttribute('aria-invalid', 'true');
-      key.focus();
+      if (e.code === 'not-found' || e.code === 'empty') {
+        other.open = true;
+        repoInput.focus();
+      } else {
+        key.setAttribute('aria-invalid', 'true');
+        key.focus();
+      }
     } finally {
       button.disabled = false;
       status.textContent = '';
     }
   });
+  const link = (href, text) => h('a', { class: 'btn', href, target: '_blank', rel: 'noopener' }, icon('external'), text);
   return h('section', { class: 'card sub-card connect-card', 'aria-labelledby': `connect-title-${n}` },
     h('h3', { id: `connect-title-${n}`, text: t.connectTitle }),
     h('p', { text: t.connectIntro }),
     h('ol', { class: 'steps' },
-      h('li', {}, h('p', { text: t.connect1 }),
-        h('a', { class: 'btn', href: tokenUrl(repo.owner), target: '_blank', rel: 'noopener' }, icon('external'), t.connect1Button)),
-      h('li', {}, h('p', { text: t.connect2(repoName) })),
+      pageRepo ? h('li', {}, h('p', { text: t.connect1 }), link(templateUrl(pageRepo), t.connect1Button)) : null,
+      h('li', {}, h('p', { text: t.connect2 }), link(tokenUrl(), t.connect2Button)),
       h('li', {}, h('p', { text: t.connect3 })),
       h('li', {}, h('p', { text: t.connect4 }),
         h('div', { class: 'field' }, h('label', { for: `github-key-${n}`, text: t.keyLabel }), key, error),
+        other,
         h('div', { class: 'check' }, rememberBox,
           h('label', { for: `remember-key-${n}` }, t.remember, h('br'), h('span', { class: 'muted', text: t.rememberHint }))),
         button, status)));
 }
 
+// Shown after connecting while GitHub Pages is off or publishes from the wrong
+// place. Turning it on needs admin rights the key does not have, so the
+// faculty member flips the setting and the page checks again.
+let pagesCount = 0;
+function pagesCard() {
+  const t = copy.github;
+  const n = ++pagesCount;
+  const status = h('p', { class: 'muted', role: 'status' });
+  const again = h('button', { type: 'button', class: 'btn btn-primary', text: t.pagesCheck });
+  again.addEventListener('click', async () => {
+    again.disabled = true;
+    status.textContent = t.pagesChecking;
+    try {
+      gh.pages = await gh.client.pagesSite(gh.branch);
+    } catch (e) {
+      again.disabled = false;
+      status.textContent = ghMessage(e);
+      return;
+    }
+    again.disabled = false;
+    if (!pagesReady()) {
+      status.textContent = gh.pages ? t.pagesWrong(gh.branch) : t.pagesStillOff;
+      return;
+    }
+    renderPanel();
+    if (state.step === 3) renderStep3();
+    refreshLinkPreview();
+  });
+  return h('section', { class: 'card sub-card pages-card', 'aria-labelledby': `pages-title-${n}` },
+    h('h3', { id: `pages-title-${n}`, text: t.pagesTitle }),
+    h('p', { text: gh.pages ? t.pagesWrong(gh.branch) : t.pagesText }),
+    h('ol', { class: 'steps' },
+      h('li', {}, h('p', { text: t.pages1 }),
+        h('a', { class: 'btn', href: pagesSettingsUrl(gh.target), target: '_blank', rel: 'noopener' }, icon('external'), t.pages1Button)),
+      h('li', {}, h('p', { text: t.pages2(gh.branch) })),
+      h('li', {}, h('p', { text: t.pages3 }), again, status)));
+}
+
 function resultsView(headline, kind, built, trackerName) {
   const t = copy.live;
-  const link = courseUrl(location.href, state.folder);
+  const link = courseLink(state.folder);
   const linkBtn = h('button', { type: 'button', class: 'btn btn-small' }, icon('copy'), t.copyLink);
   linkBtn.addEventListener('click', () => copyText(link, linkBtn, t.copied));
   const email = t.email({ title: state.raw.title, link, password: password(), name: state.name.trim() });
@@ -636,7 +722,7 @@ function fallbackSave(results) {
 
 function renderStep3() {
   const t = copy.live;
-  const link = courseUrl(location.href, state.folder);
+  const link = courseLink(state.folder);
   const results = h('div', { class: 'results-area' });
   const bar = h('progress', { max: 100, value: 0, hidden: true, 'aria-label': t.progressLabel });
   const status = h('p', { role: 'status', class: 'muted' });
@@ -651,6 +737,8 @@ function renderStep3() {
     bar.hidden = false;
     bar.value = 0;
     try {
+      status.textContent = t.preparing(0);
+      const siteFiles = await loadSiteFiles(siteRoot(location.href));
       const built = selectionFor(state.exclude);
       const out = collectWriter();
       await packCourse({
@@ -663,7 +751,7 @@ function renderStep3() {
       });
       const files = [...out.files].map(([name, data]) => ({ name, data }));
       const sha = await gh.client.publish({
-        folder: state.folder, files, branch: gh.branch, message: `Publish ${state.raw.title}`,
+        folder: state.folder, files, siteFiles, branch: gh.branch, message: `Publish ${state.raw.title}`,
         onProgress: (d, n) => {
           bar.value = 40 + Math.round((d / n) * 50);
           status.textContent = t.uploading(d, n);
@@ -698,19 +786,21 @@ function renderStep3() {
     h('dt', { text: t.link }), h('dd', {}, h('code', { text: link })),
     h('dt', { text: t.password }), h('dd', { text: password() || t.noPassword }));
 
-  let action;
-  if (!repo) action = notice(copy.github.unknownRepo, 'warn');
-  else if (!gh.client) action = connectCard(() => renderStep3());
-  else action = h('div', {}, h('div', { class: 'actions' }, backBtn, liveBtn), bar, status, error);
+  // Until the site is connected and Pages is on, a setup card stands below the
+  // summary in place of the Make it live button.
+  const ready = gh.client && pagesReady();
+  let setup = null;
+  if (!gh.client) setup = connectCard(() => renderStep3());
+  else if (!ready) setup = pagesCard();
 
   show(3, [
     h('div', { class: 'card' },
       h('h2', { text: t.title }),
       h('p', { class: 'course-name', text: state.raw.title }),
       summary,
-      gh.client || !repo ? action : null),
-    gh.client || !repo ? null : action,
-    !gh.client && repo ? h('div', { class: 'actions step-actions' }, backBtn) : null,
+      ready ? h('div', {}, h('div', { class: 'actions' }, backBtn, liveBtn), bar, status, error) : null),
+    setup,
+    setup ? h('div', { class: 'actions step-actions' }, backBtn) : null,
     results,
     fallbackSave(results),
   ]);
@@ -721,12 +811,12 @@ function renderStep3() {
 async function start() {
   renderPanel();
   renderStep1();
-  const saved = repo ? tokens.load() : null;
+  const saved = tokens.load();
   if (saved) {
     try {
-      await connect(saved, tokens.remembered());
+      await connect(saved, tokens.remembered(), tokens.repo() || '');
     } catch (error) {
-      if (error.code === 'bad-token' || error.code === 'no-access') tokens.clear();
+      if (['bad-token', 'no-access', 'not-found', 'empty'].includes(error.code)) tokens.clear();
       gh.error = ghMessage(error);
       renderPanel();
     }

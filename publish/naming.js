@@ -1,6 +1,6 @@
 // Folder names and suggested passwords for the packing page.
 
-const RESERVED = new Set(['app', 'pack', 'help', 'vendor', 'tests', 'tools', 'test-courses', 'node-modules']);
+const RESERVED = new Set(['app', 'pack', 'publish', 'help', 'vendor', 'docs', 'tests', 'tools', 'test-courses', 'node-modules']);
 
 function slug(text) {
   return text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()

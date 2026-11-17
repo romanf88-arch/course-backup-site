@@ -1,22 +1,31 @@
+import { createHash } from 'node:crypto';
+
+// Git names a file's contents by the SHA-1 of "blob <size>\0<bytes>".
+function gitSha(buffer) {
+  return createHash('sha1').update(Buffer.concat([Buffer.from(`blob ${buffer.length}\0`), buffer])).digest('hex');
+}
+
 // A stand-in for the parts of GitHub's REST API the publish page uses:
 // repository check, Git data (refs, commits, trees, blobs), file contents,
 // and the latest Pages build. Used by unit tests and by tools/mock-github.mjs.
 
 export function createFakeGitHub({
   owner = 'alice', repo = 'course-backup-site', token = 'good-token', files = {}, buildSequence = null,
+  pages = true, empty = false, pagesSource = { branch: 'main', path: '/' }, siteUrl: siteUrlOption = null,
 } = {}) {
   let counter = 0;
   const newSha = (prefix) => `${prefix}${(++counter).toString(16).padStart(8, '0')}`;
   const blobs = new Map();
   const trees = new Map();
   const commits = new Map();
-  const state = { conflictsLeft: 0, calls: [], builds: buildSequence ? [...buildSequence] : null };
+  const state = { conflictsLeft: 0, calls: [], builds: buildSequence ? [...buildSequence] : null, pages, empty };
+  const siteUrl = siteUrlOption || (repo === `${owner}.github.io` ? `https://${owner}.github.io/` : `https://${owner}.github.io/${repo}/`);
 
-  const toBase64 = (text) => Buffer.from(text).toString('base64');
   const initial = new Map();
   for (const [path, content] of Object.entries(files)) {
-    const sha = newSha('b');
-    blobs.set(sha, typeof content === 'string' ? toBase64(content) : Buffer.from(content).toString('base64'));
+    const buffer = Buffer.from(content);
+    const sha = gitSha(buffer);
+    blobs.set(sha, buffer.toString('base64'));
     initial.set(path, sha);
   }
   const rootTree = newSha('t');
@@ -51,6 +60,7 @@ export function createFakeGitHub({
   async function handle(method, path, body, headers = {}) {
     state.calls.push(`${method} ${path}`);
     if (headers.authorization !== `Bearer ${token}`) return { status: 401, json: { message: 'Bad credentials' } };
+    if (method === 'GET' && path === '/user') return { status: 200, json: { login: owner } };
     const base = `/repos/${owner}/${repo}`;
     if (!path.startsWith(base)) return { status: 404, json: { message: 'Not Found' } };
     const rest = path.slice(base.length);
@@ -59,6 +69,17 @@ export function createFakeGitHub({
     if (method === 'GET' && route === '') {
       return { status: 200, json: { full_name: `${owner}/${repo}`, default_branch: 'main', permissions: { push: true } } };
     }
+    if (method === 'GET' && route === '/pages') {
+      return state.pages
+        ? { status: 200, json: { html_url: siteUrl, status: 'built', build_type: 'legacy', source: pagesSource } }
+        : { status: 404, json: { message: 'Not Found' } };
+    }
+    if (method === 'POST' && route === '/pages') {
+      if (state.pages) return { status: 409, json: { message: 'GitHub Pages is already enabled.' } };
+      state.pages = true;
+      return { status: 201, json: { html_url: siteUrl } };
+    }
+    if (state.empty && route.startsWith('/git/')) return { status: 409, json: { message: 'Git Repository is empty.' } };
     if (method === 'GET' && route === '/git/ref/heads/main') return { status: 200, json: { object: { sha: head } } };
     let m = /^\/git\/commits\/(.+)$/.exec(route);
     if (method === 'GET' && m) {
@@ -75,7 +96,7 @@ export function createFakeGitHub({
       return { status: 200, json: { sha: m[1], tree: listing(flat, dir, query.includes('recursive=1')), truncated: false } };
     }
     if (method === 'POST' && route === '/git/blobs') {
-      const sha = newSha('b');
+      const sha = gitSha(Buffer.from(body.content, 'base64'));
       blobs.set(sha, body.content);
       return { status: 201, json: { sha } };
     }

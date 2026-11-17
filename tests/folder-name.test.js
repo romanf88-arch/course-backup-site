@@ -23,7 +23,7 @@ test('checkFolder explains what is wrong', () => {
   assert.equal(checkFolder('ocean-'), 'characters');
   assert.equal(checkFolder('a'), 'length');
   assert.equal(checkFolder('a'.repeat(61)), 'length');
-  for (const name of ['app', 'pack', 'help', 'vendor', 'node_modules', 'tests', 'tools', 'test-courses']) {
+  for (const name of ['app', 'pack', 'publish', 'help', 'vendor', 'docs', 'node_modules', 'tests', 'tools', 'test-courses']) {
     assert.equal(checkFolder(name), name === 'node_modules' ? 'characters' : 'reserved', name);
   }
 });

@@ -1,9 +1,13 @@
 // Local stand-in for GitHub, for trying the publish page without a real
 // account or token. It serves the site, answers the GitHub API calls the
 // page makes under /mock-api, and serves published courses from its memory.
+// The key "test-key" belongs to the account "alice", whose repository is
+// "course-backup". Opening the page as central/course-backup-site acts like a
+// faculty member using someone else's publish page.
 //   node tools/mock-github.mjs   then open
-//   http://localhost:8795/publish/?repo=alice/course-backup-site&api=/mock-api
-// The test key is "test-key". Development only.
+//   http://localhost:8795/publish/?repo=central/course-backup-site&api=/mock-api
+// Options: --pages-off starts with GitHub Pages off, --empty makes the
+// repository empty, --port=N picks the port. Development only.
 import { createServer } from 'node:http';
 import { createReadStream, statSync } from 'node:fs';
 import { extname, join, normalize, sep } from 'node:path';
@@ -11,9 +15,15 @@ import { fileURLToPath } from 'node:url';
 import { createFakeGitHub } from '../tests/helpers/fake-github.js';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..');
-const port = Number(process.env.PORT) || 8795;
+const arg = (name) => process.argv.find((a) => a === name || a.startsWith(`${name}=`));
+const port = Number((arg('--port') || '').split('=')[1]) || Number(process.env.PORT) || 8795;
 const gh = createFakeGitHub({
   token: 'test-key',
+  owner: 'alice',
+  repo: 'course-backup',
+  siteUrl: `http://localhost:${port}/`,
+  pages: !arg('--pages-off'),
+  empty: Boolean(arg('--empty')),
   files: { 'old-course/key.json': '{"format":1,"title":"Old Course","packId":"aaaaaaaa","course":"course-aaaaaaaa.bin"}' },
 });
 
@@ -39,6 +49,12 @@ function sendBytes(req, res, bytes, type) {
 
 createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x');
+  // Stands in for clicking Save in GitHub's Pages settings.
+  if (url.pathname === '/mock-turn-on-pages') {
+    gh.state.pages = true;
+    res.writeHead(200, { 'Content-Type': 'text/plain' }).end('GitHub Pages is on.');
+    return;
+  }
   if (url.pathname.startsWith('/mock-api/')) {
     let body = '';
     for await (const chunk of req) body += chunk;
@@ -64,4 +80,4 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain' }).end('Not found');
   }
-}).listen(port, () => console.log(`Mock GitHub site at http://localhost:${port}/publish/?repo=alice/course-backup-site&api=/mock-api (key: test-key)`));
+}).listen(port, () => console.log(`Mock GitHub site at http://localhost:${port}/publish/?repo=central/course-backup-site&api=/mock-api (key: test-key)`));

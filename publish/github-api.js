@@ -6,7 +6,7 @@ import { toBase64 } from '../app/lib/crypto.js';
 const API = 'https://api.github.com';
 
 export class GitHubError extends Error {
-  // code: 'bad-token' | 'no-access' | 'conflict' | 'too-large' | 'network' | 'failed'
+  // code: 'bad-token' | 'no-access' | 'not-found' | 'empty' | 'conflict' | 'too-large' | 'network' | 'failed'
   constructor(code, status, detail = '') {
     super(`GitHub ${code} (${status}) ${detail}`.trim());
     this.name = 'GitHubError';
@@ -15,19 +15,72 @@ export class GitHubError extends Error {
   }
 }
 
+// The name the new-site form gives a faculty member's repository.
+export const DEFAULT_REPO = 'course-backup';
+
 // GitHub's token form, filled in except for the repository, which the
 // faculty member picks. Contents (write) uploads courses; Pages (read)
-// shows when GitHub has finished publishing.
+// shows whether Pages is on and when GitHub has finished publishing.
+// Turning Pages on through the API would need admin rights over the
+// repository, so the page asks the person to switch it on themselves.
 export function tokenUrl(owner) {
   const params = new URLSearchParams({
     name: 'Course backup',
     description: 'Lets the course backup page publish and take down courses. Under Repository access, choose only your course backup repository.',
-    target_name: owner,
+    ...(owner ? { target_name: owner } : {}),
     expires_in: '366',
     contents: 'write',
     pages: 'read',
   });
   return `https://github.com/settings/personal-access-tokens/new?${params}`;
+}
+
+// GitHub's new-repository form, filled in to copy the site from a template.
+export function templateUrl({ owner, repo }) {
+  const params = new URLSearchParams({ template_owner: owner, template_name: repo, name: DEFAULT_REPO, visibility: 'public' });
+  return `https://github.com/new?${params}`;
+}
+
+// Git's name for a file's contents: SHA-1 of "blob <size>\0" and the bytes.
+// Equal names mean equal files, so unchanged site files are not sent again.
+export async function gitBlobSha(data) {
+  const bytes = typeof Blob !== 'undefined' && data instanceof Blob ? new Uint8Array(await data.arrayBuffer()) : data;
+  const head = new TextEncoder().encode(`blob ${bytes.length}\0`);
+  const all = new Uint8Array(head.length + bytes.length);
+  all.set(head);
+  all.set(bytes, head.length);
+  const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-1', all));
+  return [...digest].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function errorFor(status, detail) {
+  if (status === 401) return new GitHubError('bad-token', 401);
+  if (status === 409 && /empty/i.test(detail)) return new GitHubError('empty', 409, detail.slice(0, 200));
+  const code = status === 403 || status === 404 ? 'no-access'
+    : status === 409 || status === 422 ? (/too large|size/i.test(detail) ? 'too-large' : 'conflict')
+      : status === 413 ? 'too-large' : 'failed';
+  return new GitHubError(code, status, detail.slice(0, 200));
+}
+
+function headersFor(token, withBody) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    ...(withBody ? { 'Content-Type': 'application/json' } : {}),
+  };
+}
+
+// The GitHub account name that owns this key.
+export async function whoAmI({ token, apiBase = API, fetchImpl = (...a) => fetch(...a) }) {
+  let response;
+  try {
+    response = await fetchImpl(`${apiBase}/user`, { method: 'GET', headers: headersFor(token, false) });
+  } catch (error) {
+    throw new GitHubError('network', 0, error.message);
+  }
+  if (!response.ok) throw errorFor(response.status, await response.text().catch(() => ''));
+  return (await response.json()).login;
 }
 
 async function base64Of(data) {
@@ -54,27 +107,33 @@ export function createClient({ token, owner, repo, apiBase = API, fetchImpl = (.
     try {
       response = await fetchImpl(`${apiBase}${path}`, {
         method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: 'application/vnd.github+json',
-          'X-GitHub-Api-Version': '2022-11-28',
-          ...(body ? { 'Content-Type': 'application/json' } : {}),
-        },
+        headers: headersFor(token, Boolean(body)),
         body: body ? JSON.stringify(body) : undefined,
       });
     } catch (error) {
       throw new GitHubError('network', 0, error.message);
     }
     if (allow404 && response.status === 404) return null;
-    if (response.status === 401) throw new GitHubError('bad-token', 401);
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      const code = response.status === 403 || response.status === 404 ? 'no-access'
-        : response.status === 409 || response.status === 422 ? (/too large|size/i.test(detail) ? 'too-large' : 'conflict')
-          : response.status === 413 ? 'too-large' : 'failed';
-      throw new GitHubError(code, response.status, detail.slice(0, 200));
-    }
+    if (!response.ok) throw errorFor(response.status, await response.text().catch(() => ''));
     return response.status === 204 ? null : response.json();
+  }
+
+  async function upload(data) {
+    const blob = await call('POST', `${root}/git/blobs`, { content: await base64Of(data), encoding: 'base64' });
+    return blob.sha;
+  }
+
+  // The site files whose contents differ from what the repository holds.
+  async function changedSiteFiles(siteFiles, branch) {
+    if (!siteFiles.length) return [];
+    const { tree } = await headState(branch);
+    const all = await call('GET', `${root}/git/trees/${tree}?recursive=1`);
+    const held = new Map(all.tree.filter((e) => e.type === 'blob').map((e) => [e.path, e.sha]));
+    const changed = [];
+    for (const file of siteFiles) {
+      if (held.get(file.path) !== await gitBlobSha(file.data)) changed.push(file);
+    }
+    return changed;
   }
 
   async function headState(branch) {
@@ -92,15 +151,15 @@ export function createClient({ token, owner, repo, apiBase = API, fetchImpl = (.
     return inside.tree.filter((e) => e.type === 'blob').map((e) => `${folder}/${e.path}`);
   }
 
-  // One commit that sets these files under the folder and removes the folder's
+  // One commit that sets these files (full paths) and removes the folder's
   // other files. Retried when the repository moved on in the meantime.
   async function commitFolder({ folder, uploads, branch, message }) {
     for (let attempt = 0; attempt < 3; attempt++) {
       const { head, tree } = await headState(branch);
-      const keep = new Set(uploads.map((u) => `${folder}/${u.name}`));
+      const keep = new Set(uploads.map((u) => u.path));
       const removals = (await folderFiles(tree, folder)).filter((p) => !keep.has(p));
       const entries = [
-        ...uploads.map((u) => ({ path: `${folder}/${u.name}`, mode: '100644', type: 'blob', sha: u.sha })),
+        ...uploads.map((u) => ({ path: u.path, mode: '100644', type: 'blob', sha: u.sha })),
         ...removals.map((path) => ({ path, mode: '100644', type: 'blob', sha: null })),
       ];
       const newTree = await call('POST', `${root}/git/trees`, { base_tree: tree, tree: entries });
@@ -116,18 +175,41 @@ export function createClient({ token, owner, repo, apiBase = API, fetchImpl = (.
   }
 
   return {
+    // Checks that the repository exists, the key can change it, and it has
+    // at least one commit. Returns the branch GitHub publishes by default.
     async check() {
-      const info = await call('GET', root);
+      const info = await call('GET', root, null, { allow404: true });
+      if (!info) throw new GitHubError('not-found', 404);
       if (info.permissions && info.permissions.push === false) throw new GitHubError('no-access', 403);
-      return { branch: info.default_branch || 'main' };
+      const branch = info.default_branch || 'main';
+      await headState(branch);
+      return { branch };
     },
 
-    async publish({ folder, files, branch, message, onProgress = () => {} }) {
+    // Where GitHub Pages serves the site, and whether it serves this branch
+    // from the top folder. Null when Pages is off.
+    async pagesSite(branch) {
+      const site = await call('GET', `${root}/pages`, null, { allow404: true });
+      if (!site) return null;
+      const source = site.source || {};
+      const ready = site.build_type !== 'workflow' && source.branch === branch && (source.path || '/') === '/';
+      const url = site.html_url.endsWith('/') ? site.html_url : `${site.html_url}/`;
+      return { url, ready };
+    },
+
+    // Uploads the course files into the folder and, in the same commit,
+    // brings the site files up to date. Unchanged site files are not sent.
+    async publish({ folder, files, branch, message, siteFiles = [], onProgress = () => {} }) {
+      const site = await changedSiteFiles(siteFiles, branch);
+      const total = files.length + site.length;
       const uploads = [];
-      for (const [i, file] of files.entries()) {
-        const blob = await call('POST', `${root}/git/blobs`, { content: await base64Of(file.data), encoding: 'base64' });
-        uploads.push({ name: file.name, sha: blob.sha });
-        onProgress(i + 1, files.length);
+      for (const file of files) {
+        uploads.push({ path: `${folder}/${file.name}`, sha: await upload(file.data) });
+        onProgress(uploads.length, total);
+      }
+      for (const file of site) {
+        uploads.push({ path: file.path, sha: await upload(file.data) });
+        onProgress(uploads.length, total);
       }
       return commitFolder({ folder, uploads, branch, message });
     },

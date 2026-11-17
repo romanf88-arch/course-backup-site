@@ -30,7 +30,7 @@
       <li><a href="#before">Before an outage</a></li>
       <li><a href="#setup">Set up your site (first time only)</a></li>
       <li><a href="#publish">Publish a course</a></li>
-      <li><a href="#connect">Connect to GitHub</a></li>
+      <li><a href="#connect">Connect on another computer</a></li>
       <li><a href="#students">Send the link to your students</a></li>
       <li><a href="#replace">Replace a course or change its password</a></li>
       <li><a href="#remove">Take a course down</a></li>
@@ -55,13 +55,15 @@
 
   <section class="card" id="setup" aria-labelledby="setup-title">
     <h2 id="setup-title">Set up your site (first time only)</h2>
+    <p>Your courses go on a site in your own GitHub account. The "Publish a course" page walks you through the setup, which takes about ten minutes.</p>
     <ol class="steps">
       <li>Make a free account at <a href="https://github.com/signup">github.com</a> if you do not have one. Use an account that you use for nothing else. Sites on one account share a web address, so another site on that address could reach the passwords students save on their devices.</li>
-      <li>Open the <a href="https://github.com/romanf88-arch/course-backup-site">template repository</a>, click "Use this template", and choose "Create a new repository". Give it a short name, such as course-backup, choose "Public", and click "Create repository". Every course you publish is locked with its password, so a public repository is safe.</li>
-      <li>In your new repository, click "Settings", then "Pages". Under "Build and deployment", set "Source" to "Deploy from a branch", choose the "main" branch and the "/ (root)" folder, and click "Save".</li>
-      <li>Wait about a minute and reload the page. GitHub shows your site's address, which looks like https://your-name.github.io/course-backup/.</li>
-      <li>Open that address, click "Publish a course", and bookmark the page.</li>
+      <li>Open the <a href="../publish/">"Publish a course" page</a> and click "Connect to GitHub". Then click "Make your course site". GitHub opens a form that copies this site into your account under the name course-backup, as a public repository. Click "Create repository". Every course you publish is locked with its password, so a public repository is safe.</li>
+      <li>Back on the publish page, click "Open GitHub's key form". GitHub opens the form with the name, a one-year expiry, and the two permissions the page needs already filled in. Under "Repository access", choose "Only select repositories" and pick course-backup.</li>
+      <li>Click "Generate token" at the bottom of the form, then copy the key GitHub shows. It starts with github_pat_. Paste it into the publish page and click "Connect". Tick "Remember on this computer" only on your own computer.</li>
+      <li>The page then asks you to turn on GitHub Pages, which puts your site on the web. Click "Open the Pages settings". Under "Build and deployment", set "Source" to "Deploy from a branch", choose the "main" branch and the "/ (root)" folder, and click "Save". Then click "Check again" on the publish page.</li>
     </ol>
+    <p>Your site's address looks like https://your-name.github.io/course-backup/, and each course gets its own folder under it.</p>
   </section>
 
   <section class="card" id="publish" aria-labelledby="publish-title">
@@ -70,22 +72,16 @@
       <li>Open your site's "Publish a course" page and drop your .imscc file onto it.</li>
       <li>Click "Preview as a student" and look through the course. Then check the link name, the password, and your name and email.</li>
       <li>If the page lists content that opens later, untick anything that holds answers. The site shows that content on its date, but a student who has the password could read it early with browser tools.</li>
-      <li>Click "Continue", then "Make it live". The first time, the page asks you to connect to GitHub (see the next section).</li>
+      <li>Click "Continue", then "Make it live". The first time, the page asks you to set up your site (see the section above).</li>
       <li>Wait while the page sends the locked course to GitHub. When the course is online, usually after about a minute, the page shows the student link and a message you can send.</li>
     </ol>
     <p>The page also saves the submission tracker to your Downloads folder. The tracker never goes to GitHub.</p>
   </section>
 
   <section class="card" id="connect" aria-labelledby="connect-title">
-    <h2 id="connect-title">Connect to GitHub</h2>
-    <p>GitHub lets the page add courses to your site only with a key that you create. You make the key once on each computer you use, and it can change only the repository you pick.</p>
-    <ol class="steps">
-      <li>On the publish page, click "Open GitHub's key form". GitHub opens the form with the name, a one-year expiry, and the two permissions the page needs already filled in.</li>
-      <li>Under "Repository access", choose "Only select repositories" and pick your course backup repository.</li>
-      <li>Click "Generate token" at the bottom of the form, then copy the key GitHub shows. It starts with github_pat_.</li>
-      <li>Paste the key into the publish page and click "Connect". Tick "Remember on this computer" only on your own computer.</li>
-    </ol>
-    <p>The key lasts one year. When it expires, the page asks you to connect again with a new key. On a shared computer, click "Disconnect" when you finish.</p>
+    <h2 id="connect-title">Connect on another computer</h2>
+    <p>GitHub shows a key only once, so on a new computer you make a new key. On the publish page, click "Connect to GitHub", skip "Make your course site", and follow the key steps. Your site and your courses stay as they are.</p>
+    <p>If your site's repository is not named course-backup, open "My site has a different name" under the key and type the name. The key lasts one year. When it expires, the page asks you to connect again with a new key. On a shared computer, click "Disconnect" when you finish.</p>
   </section>
 
   <section class="card" id="students" aria-labelledby="students-title">
@@ -127,7 +123,7 @@
     <h2 id="size-title">Size limits</h2>
     <ul>
       <li>GitHub publishes a site of up to 1 GB, and that limit covers all the courses in one repository together. The publish page shows each course's size and warns you above 500 MB.</li>
-      <li>If your courses do not fit, make a second repository from the template for the rest.</li>
+      <li>If your courses do not fit, make a second site with "Make your course site" and give it another name, such as course-backup-2. Connect to it by typing that name under "My site has a different name".</li>
       <li>Videos take the most space. If a video is already on YouTube or Panopto, untick it on the publish page and give students that link instead.</li>
       <li>GitHub also limits each site to about 100 GB of downloads a month, and a class that watches long videos on the site can use a large share of that.</li>
     </ul>
@@ -147,12 +143,7 @@
 
   <section class="card" id="updates" aria-labelledby="updates-title">
     <h2 id="updates-title">Get updates to the site</h2>
-    <p>A repository made from the template does not update itself. When the template gets a fix, you can copy it into your repository.</p>
-    <ol class="steps">
-      <li>Open the <a href="https://github.com/romanf88-arch/course-backup-site">template repository</a>, click "Code", and choose "Download ZIP". Open the .zip file.</li>
-      <li>Open your repository's upload page ("Add file", then "Upload files").</li>
-      <li>Drag the app, publish, help, and vendor folders and the sw.js file onto the page, and click "Commit changes". Your courses stay as they are.</li>
-    </ol>
+    <p>Each time you make a course live, the publish page copies its own version of the site's code into your repository, in the same step as the course. So if you publish from the <a href="https://romanf88-arch.github.io/course-backup-site/publish/">main publish page</a>, your site gets every fix to that page. Your courses and any files you added yourself stay as they are.</p>
   </section>
 </main>
 </body>

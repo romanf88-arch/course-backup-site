@@ -7,12 +7,14 @@ Everything happens in a web browser, and nothing needs installing. The export ne
 ## Set up your site (first time only)
 
 1. Make a free account at [github.com](https://github.com/signup) if you do not have one. Use an account that you use for nothing else, because sites on one account share a web address.
-2. Click "Use this template" at the top of this page and choose "Create a new repository". Give it a short name, such as `course-backup`, choose "Public", and click "Create repository". Every course you upload is encrypted, so a public repository is safe.
-3. In your new repository, click "Settings", then "Pages". Under "Build and deployment", set "Source" to "Deploy from a branch", choose the "main" branch and the "/ (root)" folder, and click "Save".
-4. Wait about a minute and reload the page. GitHub shows your site's address, which looks like `https://your-name.github.io/course-backup/`.
-5. Open that address and click "Publish a course". The first time you make a course live, the page shows how to create a GitHub key so it can add courses to your site.
+2. Open the [publish page](https://romanf88-arch.github.io/course-backup-site/publish/) and click "Connect to GitHub".
+3. Click "Make your course site". GitHub copies this repository into your account under the name `course-backup`, as a public repository. Every course you upload is encrypted, so a public repository is safe.
+4. Click "Open GitHub's key form", pick `course-backup` under "Repository access", generate the key, and paste it into the publish page.
+5. Turn on GitHub Pages when the page asks: in your repository's Pages settings, deploy from the `main` branch and the `/ (root)` folder.
 
-The help page on your site (`https://your-name.github.io/course-backup/help/`) explains publishing a course, connecting to GitHub, sending the link to students, replacing or taking down a course, the submission tracker, and size limits.
+Your courses then live at `https://your-name.github.io/course-backup/<course>/`. Each time you make a course live, the page also copies its current version of the site's code into your repository, so your site gets fixes without extra steps.
+
+The [help page](https://romanf88-arch.github.io/course-backup-site/help/) explains publishing a course, sending the link to students, replacing or taking down a course, the submission tracker, and size limits.
 
 ## What students see
 
@@ -30,7 +32,9 @@ The site leaves out quiz questions and answers, anything unpublished, locked fil
 
 ## For developers
 
-The site is plain JavaScript modules with no build step. The shared library is in `app/lib/`, the course viewer in `app/viewer/`, the publish page in `publish/` (its GitHub API client is `publish/github-api.js`), and the service worker that decrypts files is `sw.js`. `node tools/mock-github.mjs` runs the publish page against a local stand-in for GitHub.
+The site is plain JavaScript modules with no build step. The shared library is in `app/lib/`, the course viewer in `app/viewer/`, the publish page in `publish/` (its GitHub API client is `publish/github-api.js`), and the service worker that decrypts files is `sw.js`. `node tools/mock-github.mjs` runs the publish page against a local stand-in for GitHub (add `--pages-off` to try the first-time setup).
+
+`site-files.json` lists the files the publish page copies into a faculty member's repository. After you add, rename, or remove a site file, commit it and run `node tools/site-manifest.mjs`; a test fails while the list is out of date.
 
 ```bash
 npm install

@@ -17,7 +17,7 @@ test('check explains a token GitHub refuses and a token for another repository',
   const gh = createFakeGitHub({ files: SITE });
   await assert.rejects(client(gh, 'wrong').check(), (e) => e instanceof GitHubError && e.code === 'bad-token');
   const other = createClient({ token: 'good-token', owner: 'alice', repo: 'something-else', apiBase: 'https://api.test', fetchImpl: gh.fetch });
-  await assert.rejects(other.check(), (e) => e instanceof GitHubError && e.code === 'no-access');
+  await assert.rejects(other.check(), (e) => e instanceof GitHubError && e.code === 'not-found');
 });
 
 test('a network failure has its own code', async () => {
@@ -130,6 +130,23 @@ test('the token stays for the session unless the faculty member asks to remember
   assert.equal(store.remembered(), true);
   store.clear();
   assert.equal(store.load(), null);
+});
+
+test('the store keeps the repository name with the key, in the same place', () => {
+  const session = memoryStorage();
+  const local = memoryStorage();
+  const store = createTokenStore({ session, local });
+  store.save('abc', true, 'course-backup');
+  assert.equal(store.repo(), 'course-backup');
+  assert.equal(local.data.size, 2);
+  store.save('abc', false, 'my-site');
+  assert.equal(store.repo(), 'my-site');
+  assert.equal(local.data.size, 0);
+  store.clear();
+  assert.equal(store.repo(), null);
+  local.setItem('cbs-github-token', 'saved-before-names');
+  assert.equal(store.load(), 'saved-before-names');
+  assert.equal(store.repo(), null, 'a key saved before the page kept names has no name');
 });
 
 test('blocked storage does not break the page', () => {
