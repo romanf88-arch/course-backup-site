@@ -1,19 +1,15 @@
 // Decides what students will see: the content rules in the design's
 // "What goes into a course" section, applied to a RawCourse.
 import { makeFileResolver, fileBaseRefs } from './paths.js';
+import { parseDate } from './dates.js';
+
+export { parseDate };
 
 const KIND_OF_ITEM = {
   WikiPage: 'page', Assignment: 'assignment', DiscussionTopic: 'discussion',
   'Quizzes::Quiz': 'quiz', Attachment: 'file', ExternalUrl: 'link', ContextExternalTool: 'tool',
 };
 const CONTENT = [['page', 'pages'], ['assignment', 'assignments'], ['discussion', 'discussions'], ['quiz', 'quizzes']];
-
-// Canvas writes dates in UTC without a zone marker.
-export function parseDate(text) {
-  if (!text) return null;
-  const date = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(text) ? text : `${text}Z`);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
 
 export function selectContent(raw, { now, exclude }) {
   const isFuture = (text) => {
