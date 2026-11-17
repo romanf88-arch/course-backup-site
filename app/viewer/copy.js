@@ -98,6 +98,24 @@ export const copy = {
   searchNone: 'Nothing matched. Try a shorter word or check the spelling.',
   searchEmpty: 'Type a word to search the course.',
 
+  gate: {
+    kicker: 'Course backup',
+    intro: 'Type the password your instructor sent you.',
+    label: 'Password',
+    show: 'Show',
+    hide: 'Hide',
+    showLabel: 'Show the password',
+    remember: 'Remember on this device',
+    rememberHint: 'Leave this off on a shared or library computer.',
+    open: 'Open the course',
+    opening: 'Opening the course…',
+    empty: 'Type the password first.',
+    wrong: 'That password did not work. Check it against your instructor’s message and try again.',
+    failed: 'The course could not be opened. Reload the page and try again.',
+    missing: 'This course could not be found. Check the link your instructor sent you.',
+    forget: 'Forget this course on this device',
+  },
+
   notFound: 'This item is not included in the backup.',
   notFoundHome: 'Go to the course home page',
 };
