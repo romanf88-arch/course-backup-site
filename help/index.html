@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Help for faculty | Course backup</title>
+<link rel="stylesheet" href="../app/styles.css">
+<script type="module">
+  import { applyStoredTheme, themeButton } from '../app/viewer/render.js';
+  applyStoredTheme();
+  document.getElementById('theme-slot').replaceWith(themeButton());
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="brand" href="../">Course backup</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="../pack/">Pack a course</a>
+      <span id="theme-slot"></span>
+    </nav>
+  </div>
+</header>
+<main id="main" class="page-shell help" tabindex="-1">
+  <h1>Help for faculty</h1>
+  <p class="lead">This site turns a Canvas course export into a password-protected website, so your students can keep reading the course while Canvas is down. You do everything in a web browser and install nothing.</p>
+
+  <nav class="card toc" aria-labelledby="toc-title">
+    <h2 id="toc-title">On this page</h2>
+    <ol>
+      <li><a href="#before">Before an outage</a></li>
+      <li><a href="#setup">Set up your site (first time only)</a></li>
+      <li><a href="#pack">Pack and upload a course</a></li>
+      <li><a href="#students">Send the link to your students</a></li>
+      <li><a href="#replace">Replace a course or change its password</a></li>
+      <li><a href="#remove">Take a course down</a></li>
+      <li><a href="#tracker">Keep track of submissions</a></li>
+      <li><a href="#leak">If a password gets out</a></li>
+      <li><a href="#size">Size limits</a></li>
+      <li><a href="#what">What students see</a></li>
+      <li><a href="#updates">Get updates to the site</a></li>
+    </ol>
+  </nav>
+
+  <section class="card" id="before" aria-labelledby="before-title">
+    <h2 id="before-title">Before an outage</h2>
+    <p>Download two things at the start of each term and keep them on your computer.</p>
+    <ol class="steps">
+      <li>Your course export. In Canvas, open the course, go to "Settings", choose "Export Course Content", select "Course", and click "Create Export". When the export is ready, download the .imscc file.</li>
+      <li>Your class roster, from the campus student system. You cannot get it from Canvas while Canvas is down, and you will need it for the submission tracker.</li>
+    </ol>
+    <p>Export the course again after you make large changes, so your copy stays current.</p>
+  </section>
+
+  <section class="card" id="setup" aria-labelledby="setup-title">
+    <h2 id="setup-title">Set up your site (first time only)</h2>
+    <ol class="steps">
+      <li>Make a free account at <a href="https://github.com/signup">github.com</a> if you do not have one. Use an account that you use for nothing else. Sites on one account share a web address, so another site on that address could reach the passwords students save on their devices.</li>
+      <li>Open the <a href="https://github.com/romanf88-arch/course-backup-site">template repository</a>, click "Use this template", and choose "Create a new repository". Give it a short name, such as course-backup, choose "Public", and click "Create repository". Every course you upload is encrypted, so a public repository is safe.</li>
+      <li>In your new repository, click "Settings", then "Pages". Under "Build and deployment", set "Source" to "Deploy from a branch", choose the "main" branch and the "/ (root)" folder, and click "Save".</li>
+      <li>Wait about a minute and reload the page. GitHub shows your site's address, which looks like https://your-name.github.io/course-backup/.</li>
+      <li>Open that address, click "Pack a course", and bookmark the packing page.</li>
+    </ol>
+  </section>
+
+  <section class="card" id="pack" aria-labelledby="pack-title">
+    <h2 id="pack-title">Pack and upload a course</h2>
+    <ol class="steps">
+      <li>Open your site's packing page and drop your .imscc file onto it.</li>
+      <li>Check the folder name, the password, and your name and email. Read the list of what students will see and what was left out, then click "Preview as a student" to look through the course.</li>
+      <li>If the page lists content that opens later, untick anything that holds answers. The site shows that content on its date, but a student who has the password could read it early with browser tools.</li>
+      <li>Click "Continue" and save the course folder. In Chrome or Edge you choose where the folder goes, for example your Desktop. In other browsers you get a .zip file, and you open it to get the folder.</li>
+      <li>Click "Open the upload page". Drag the course folder onto the GitHub page, wait until every file is listed, and click "Commit changes".</li>
+      <li>Wait about a minute, then open the course link and type the password to check that the course opens.</li>
+    </ol>
+    <p>The packing page also saves the submission tracker to your Downloads folder. It never puts the tracker in the course folder.</p>
+  </section>
+
+  <section class="card" id="students" aria-labelledby="students-title">
+    <h2 id="students-title">Send the link to your students</h2>
+    <p>The packing page writes a message you can copy into an email. It holds the course link and the password. Send it from your campus email, so students know it comes from you.</p>
+    <p>On their own computers and phones, students can tick "Remember on this device" so they do not type the password on every visit. On a shared or library computer they should leave it unticked.</p>
+  </section>
+
+  <section class="card" id="replace" aria-labelledby="replace-title">
+    <h2 id="replace-title">Replace a course or change its password</h2>
+    <ol class="steps">
+      <li>Pack the new export, or the same export with a new password, and use the same folder name as before.</li>
+      <li>On GitHub, open the old course folder, click the menu with three dots at the top right, choose "Delete directory", and click "Commit changes".</li>
+      <li>Upload the new folder the same way as the first time.</li>
+    </ol>
+    <p>Students who saved the old password on a device will be asked for the new one.</p>
+  </section>
+
+  <section class="card" id="remove" aria-labelledby="remove-title">
+    <h2 id="remove-title">Take a course down</h2>
+    <p>When Canvas is back, open the course folder on GitHub, choose "Delete directory" from the menu with three dots, and click "Commit changes". The course stops opening about a minute later.</p>
+    <p>To remove the whole site, open the repository's "Settings", go to the bottom of the page, and choose "Delete this repository".</p>
+  </section>
+
+  <section class="card" id="tracker" aria-labelledby="tracker-title">
+    <h2 id="tracker-title">Keep track of submissions</h2>
+    <p>The submission tracker is an Excel file named after your course, such as "LAS 291-292 submission tracker.xlsx". It lists every graded assignment, discussion, and quiz in the order of your modules.</p>
+    <ol class="steps">
+      <li>Paste your roster into the Submissions sheet: names in column A and email addresses in column B, starting in row 4.</li>
+      <li>For each student and assignment, choose Received, Late, Missing, or Excused. The last column counts each student's missing work.</li>
+      <li>Type the points each student earned on the Scores sheet. Total and Percent fill in as you type.</li>
+    </ol>
+    <div class="notice notice-warn"><p>Keep the tracker on your own computer. Do not upload it to GitHub, Google Drive, or any shared folder, because it holds student records that FERPA protects.</p></div>
+    <p>The site does not collect work. Tell students how to turn in work during the outage, for example by email or through a Google Form.</p>
+  </section>
+
+  <section class="card" id="leak" aria-labelledby="leak-title">
+    <h2 id="leak-title">If a password gets out</h2>
+    <p>Pack the course again with a new password and replace the folder on GitHub. GitHub keeps every earlier version of a repository, though, and the old password still opens the old version. To remove it completely, delete the repository, set up the site again, and upload the course with the new password.</p>
+  </section>
+
+  <section class="card" id="size" aria-labelledby="size-title">
+    <h2 id="size-title">Size limits</h2>
+    <ul>
+      <li>GitHub publishes a site of up to 1 GB, and that limit covers all the courses in one repository together. The packing page shows each course's size and warns you above 500 MB.</li>
+      <li>If your courses do not fit, make a second repository from the template for the rest.</li>
+      <li>Videos take the most space. If a video is already on YouTube or Panopto, untick it on the packing page and give students that link instead.</li>
+      <li>GitHub also limits each site to about 100 GB of downloads a month, and a class that watches long videos on the site can use a large share of that.</li>
+    </ul>
+  </section>
+
+  <section class="card" id="what" aria-labelledby="what-title">
+    <h2 id="what-title">What students see</h2>
+    <p>Students see the course home page, the modules in your order, pages, files, links to outside websites, and the instructions for assignments and discussions, with due dates, points, and rubrics. For quizzes they see the title and instructions only.</p>
+    <p>The site leaves out quiz questions and answers, anything unpublished, locked files, and hidden files that no page links to. It has no submissions, grades, or discussion replies. Tools that opened through Canvas, and videos stored in Canvas Studio, will not work.</p>
+    <p>Dates come from the Canvas course. If due dates change during the outage, tell students in your email.</p>
+  </section>
+
+  <section class="card" id="updates" aria-labelledby="updates-title">
+    <h2 id="updates-title">Get updates to the site</h2>
+    <p>A repository made from the template does not update itself. When the template gets a fix, you can copy it into your repository.</p>
+    <ol class="steps">
+      <li>Open the <a href="https://github.com/romanf88-arch/course-backup-site">template repository</a>, click "Code", and choose "Download ZIP". Open the .zip file.</li>
+      <li>Open your repository's upload page ("Add file", then "Upload files").</li>
+      <li>Drag the app, pack, help, and vendor folders and the sw.js file onto the page, and click "Commit changes". Your course folders stay as they are.</li>
+    </ol>
+  </section>
+</main>
+</body>
+</html>

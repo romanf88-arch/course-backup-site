@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Course backup</title>
+<link rel="stylesheet" href="app/styles.css">
+<script type="module">
+  import { applyStoredTheme, themeButton } from './app/viewer/render.js';
+  applyStoredTheme();
+  document.getElementById('theme-slot').replaceWith(themeButton());
+</script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="site-header-inner">
+    <a class="brand" href="./">Course backup</a>
+    <nav class="site-nav" aria-label="Site">
+      <a href="help/">Help</a>
+      <span id="theme-slot"></span>
+    </nav>
+  </div>
+</header>
+<main id="main" class="page-shell" tabindex="-1">
+  <h1>Course backup</h1>
+  <p class="lead">This site holds read-only copies of Canvas courses, so students can keep reading course materials while Canvas is unavailable.</p>
+
+  <section class="card">
+    <h2>Students</h2>
+    <p>Use the link and password your instructor sent you. Each course has its own link, and this page does not list them.</p>
+    <p class="muted">If the link or the password does not work, write to your instructor.</p>
+  </section>
+
+  <section class="card">
+    <h2>Faculty</h2>
+    <p>Turn your Canvas course export into a password-protected copy of your course, then upload it to this site. The export stays on your computer while you work.</p>
+    <p class="actions">
+      <a class="btn btn-primary" href="pack/">Pack a course</a>
+      <a class="btn" href="help/">Read the help page</a>
+    </p>
+  </section>
+</main>
+</body>
+</html>
