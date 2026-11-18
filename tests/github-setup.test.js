@@ -83,6 +83,17 @@ test('the new-site form starts from the template, public, named course-backup', 
   assert.equal(url.searchParams.get('visibility'), 'public');
 });
 
+test('the site files never include a published course', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const tracked = execFileSync('git', ['ls-files'], { cwd: new URL('..', import.meta.url), encoding: 'utf8' }).split('\n');
+  const courseFolders = tracked.filter((p) => /^[^/]+\/key\.json$/.test(p)).map((p) => p.split('/')[0]);
+  const listed = siteFiles();
+  for (const folder of courseFolders) {
+    assert.ok(!listed.some((p) => p.startsWith(`${folder}/`)), `${folder} is a course, not part of the site`);
+  }
+  for (const path of listed) assert.match(path, /^(\.nojekyll|LICENSE|index\.html|sw\.js|(app|help|pack|publish|vendor)\/.+)$/, path);
+});
+
 test('site-files.json lists exactly the site files', () => {
   const listed = JSON.parse(readFileSync(new URL('../site-files.json', import.meta.url), 'utf8')).files;
   assert.deepEqual(listed, siteFiles());

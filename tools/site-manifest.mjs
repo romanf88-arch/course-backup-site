@@ -9,15 +9,18 @@ import { fileURLToPath } from 'node:url';
 
 const root = join(fileURLToPath(import.meta.url), '..', '..');
 
-// Files that are not part of the site, or that faculty may have edited.
-const LEAVE_OUT = [/^tests\//, /^tools\//, /^package(-lock)?\.json$/, /^\.git/, /^README\.md$/, /^site-files\.json$/];
+// Only these top-level files and folders make up the site. Everything else
+// (published courses, tests, tools, README) stays out, so a course published
+// into this repository is never copied into other people's sites. A new
+// top-level site folder must be added here and to RESERVED in publish/naming.js.
+const SITE = /^(\.nojekyll|LICENSE|index\.html|sw\.js|(app|help|pack|publish|vendor)\/.+)$/;
 
 export function siteFiles() {
   const tracked = execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' }).split('\n').filter(Boolean);
-  return tracked.filter((path) => !LEAVE_OUT.some((rule) => rule.test(path))).sort();
+  return tracked.filter((path) => SITE.test(path)).sort();
 }
 
-if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}` || process.argv[1].endsWith('site-manifest.mjs')) {
+if (process.argv[1] && process.argv[1].endsWith('site-manifest.mjs')) {
   const files = siteFiles();
   writeFileSync(join(root, 'site-files.json'), `${JSON.stringify({ files }, null, 2)}\n`);
   console.log(`site-files.json: ${files.length} files`);
